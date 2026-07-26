@@ -46,10 +46,16 @@ import {
   PlusCircle,
   FileImage,
   ArrowDownRight,
-  ZapOff
+  Settings,
+  Users,
+  ChevronDown,
+  Globe,
+  Sliders,
+  Mail,
+  Send
 } from 'lucide-react';
 
-type ModuleTab = 'dashboard' | 'finance' | 'tasks' | 'assets' | 'daily';
+type ModuleTab = 'dashboard' | 'finance' | 'tasks' | 'assets' | 'daily' | 'settings';
 
 const API_BASE =
   typeof window !== 'undefined' &&
@@ -62,13 +68,22 @@ export default function App() {
   const [isOnline] = useState<boolean>(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
 
+  // Workspaces State & Active Workspace Selection
+  const [workspaces, setWorkspaces] = useState<any[]>([
+    { id: 'ws_personal_01', name: '🏠 Ví Cá Nhân - Lành Guru', type: 'personal', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
+    { id: 'ws_family_02', name: '👨‍👩‍👧‍👦 Ví Gia Đình Lành', type: 'team', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
+    { id: 'ws_company_03', name: '💼 Bảo Trì Công Ty / Sufruit', type: 'team', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
+  ]);
+  const [currentWorkspace, setCurrentWorkspace] = useState<any>(workspaces[0]);
+  const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
+
   // Core Data Lists
   const [transactions, setTransactions] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [wallets, setWallets] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
-  const [habits, setHabits] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
 
   // Modals Visibility State
   const [isAddTxnModalOpen, setIsAddTxnModalOpen] = useState(false);
@@ -76,15 +91,23 @@ export default function App() {
   const [isAddAssetModalOpen, setIsAddAssetModalOpen] = useState(false);
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
   const [isAddWalletModalOpen, setIsAddWalletModalOpen] = useState(false);
+  const [isAddWorkspaceModalOpen, setIsAddWorkspaceModalOpen] = useState(false);
+  const [isInviteMemberModalOpen, setIsInviteMemberModalOpen] = useState(false);
   const [isVietQRModalOpen, setIsVietQRModalOpen] = useState(false);
-  const [isBankSyncModalOpen, setIsBankSyncModalOpen] = useState(false);
   const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   // Auto Bank Sync Loading State
   const [isSyncingBank, setIsSyncingBank] = useState(false);
   const [bankSyncMessage, setBankSyncMessage] = useState('');
+
+  // Workspace Settings Form State
+  const [wsName, setWsName] = useState(currentWorkspace?.name || '');
+  const [wsCurrency, setWsCurrency] = useState(currentWorkspace?.baseCurrency || 'VND');
+  const [wsTimezone, setWsTimezone] = useState(currentWorkspace?.timezone || 'Asia/Ho_Chi_Minh');
+  const [wsReminderHour, setWsReminderHour] = useState('8');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [newWsName, setNewWsName] = useState('');
 
   // Current User State
   const [currentUser, setCurrentUser] = useState<any>(() => {
@@ -116,42 +139,26 @@ export default function App() {
     return localStorage.getItem('pwa_banner_dismissed') === 'true';
   });
 
-  // Filter States
-  const [taskFilter, setTaskFilter] = useState<'all' | 'recurring' | 'due' | 'done'>('all');
-
   // Form Field States
-  // 1. Transaction Form
   const [txnType, setTxnType] = useState<'expense' | 'income'>('expense');
   const [txnAmount, setTxnAmount] = useState('');
   const [txnNote, setTxnNote] = useState('');
   const [txnCategory, setTxnCategory] = useState('cat_food');
   const [txnWalletId, setTxnWalletId] = useState('');
-  const [txnReceiptUrl, setTxnReceiptUrl] = useState('');
 
-  // 2. Task Form
   const [taskTitle, setTaskTitle] = useState('');
-  const [taskDesc, setTaskDesc] = useState('');
-  const [taskPriority, setTaskPriority] = useState<'normal' | 'high'>('normal');
   const [taskRrule, setTaskRrule] = useState('');
   const [taskDueOn, setTaskDueOn] = useState(new Date().toISOString().split('T')[0]);
 
-  // 3. Asset Form
   const [assetName, setAssetName] = useState('');
   const [assetCategory, setAssetCategory] = useState('Xe máy & Ô tô');
-  const [assetLocation, setAssetLocation] = useState('Nhà riêng');
-  const [assetWarranty, setAssetWarranty] = useState('2027-12-31');
 
-  // 4. Note Form
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
-  const [noteCategory, setNoteCategory] = useState('Ghi chú chung');
 
-  // 5. Wallet Form
   const [walletName, setWalletName] = useState('');
-  const [walletType, setWalletType] = useState('bank');
   const [walletBalance, setWalletBalance] = useState('');
 
-  // 6. VietQR Form
   const [qrBank, setQrBank] = useState('MB');
   const [qrAccountNo, setQrAccountNo] = useState('0987654321');
   const [qrAccountName, setQrAccountName] = useState('NGUYEN VAN LANH');
@@ -159,50 +166,22 @@ export default function App() {
   const [qrNote, setQrNote] = useState('LifeHub Chuyen Khoan');
   const [generatedQrUrl, setGeneratedQrUrl] = useState('');
 
-  // Initial Fetch & Google Auth Identity Services Script
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      localStorage.setItem('pwa_installed', 'true');
-      setDeferredPrompt(null);
-    };
-
-    const handleOAuthMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'OAUTH_SUCCESS') {
-        const userObj = event.data.user;
-        setCurrentUser(userObj);
-        localStorage.setItem('lifehub_user', JSON.stringify(userObj));
-        setIsAuthModalOpen(false);
-      }
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-    window.addEventListener('message', handleOAuthMessage);
-
-    // Load Google Identity Services SDK script dynamically
-    if (!document.getElementById('google-gsi-script')) {
-      const script = document.createElement('script');
-      script.id = 'google-gsi-script';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      document.body.appendChild(script);
-    }
-
+    fetchWorkspaces();
     fetchData();
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-      window.removeEventListener('message', handleOAuthMessage);
-    };
   }, []);
+
+  const fetchWorkspaces = () => {
+    fetch(`${API_BASE}/api/workspaces`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.workspaces?.length > 0) {
+          setWorkspaces(data.workspaces);
+          if (!currentWorkspace) setCurrentWorkspace(data.workspaces[0]);
+        }
+      })
+      .catch(() => {});
+  };
 
   const fetchData = () => {
     fetch(`${API_BASE}/api/daily/dashboard`)
@@ -238,10 +217,79 @@ export default function App() {
       .then((data) => setNotes(data.notes || []))
       .catch(() => {});
 
-    fetch(`${API_BASE}/api/daily/habits`)
-      .then((res) => res.json())
-      .then((data) => setHabits(data.habits || []))
-      .catch(() => {});
+    if (currentWorkspace?.id) {
+      fetch(`${API_BASE}/api/workspaces/${currentWorkspace.id}/members`)
+        .then((res) => res.json())
+        .then((data) => setMembers(data.members || []))
+        .catch(() => {});
+    }
+  };
+
+  // --- WORKSPACE & SETTINGS HANDLERS ---
+  const handleSwitchWorkspace = (ws: any) => {
+    setCurrentWorkspace(ws);
+    setWsName(ws.name);
+    setWsCurrency(ws.baseCurrency || 'VND');
+    setIsWorkspaceDropdownOpen(false);
+    fetchData();
+  };
+
+  const handleCreateWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWsName) return;
+
+    const res = await fetch(`${API_BASE}/api/workspaces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newWsName, type: 'team' }),
+    }).catch(() => null);
+
+    if (res) {
+      const data = await res.json();
+      if (data.workspace) {
+        setWorkspaces((prev) => [...prev, data.workspace]);
+        handleSwitchWorkspace(data.workspace);
+      }
+    }
+    setNewWsName('');
+    setIsAddWorkspaceModalOpen(false);
+  };
+
+  const handleSaveWorkspaceSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentWorkspace?.id) return;
+
+    await fetch(`${API_BASE}/api/workspaces/${currentWorkspace.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: wsName,
+        baseCurrency: wsCurrency,
+        timezone: wsTimezone,
+        reminderHourLocal: wsReminderHour,
+      }),
+    }).catch(() => {});
+
+    setWorkspaces((prev) =>
+      prev.map((w) => (w.id === currentWorkspace.id ? { ...w, name: wsName, baseCurrency: wsCurrency } : w))
+    );
+    setCurrentWorkspace((prev: any) => ({ ...prev, name: wsName, baseCurrency: wsCurrency }));
+    setBankSyncMessage('Đã lưu cấu hình Workspace thành công!');
+  };
+
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail || !currentWorkspace?.id) return;
+
+    await fetch(`${API_BASE}/api/workspaces/${currentWorkspace.id}/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: inviteEmail, role: 'member' }),
+    }).catch(() => {});
+
+    setMembers((prev) => [...prev, { id: 'usr_' + Date.now(), name: inviteEmail.split('@')[0], email: inviteEmail, role: 'member' }]);
+    setInviteEmail('');
+    setIsInviteMemberModalOpen(false);
   };
 
   // --- AUTOMATIC BANK BALANCE DEDUCTION & SYNC HANDLER ---
@@ -269,7 +317,7 @@ export default function App() {
     }
   };
 
-  // 1. Transaction Create with Automatic Balance Deduction
+  // Transaction Create
   const handleCreateTxn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!txnAmount) return;
@@ -281,7 +329,6 @@ export default function App() {
       categoryId: txnCategory,
       occurredOn: new Date().toISOString().split('T')[0],
       walletId: txnWalletId || wallets[0]?.id || 'wal_cash',
-      receiptUrl: txnReceiptUrl || null,
     };
 
     await fetch(`${API_BASE}/api/finance/transactions`, {
@@ -293,7 +340,6 @@ export default function App() {
     fetchData();
     setTxnAmount('');
     setTxnNote('');
-    setTxnReceiptUrl('');
     setIsAddTxnModalOpen(false);
   };
 
@@ -303,7 +349,6 @@ export default function App() {
     fetchData();
   };
 
-  // 2. VietQR Generator Handler
   const handleGenerateVietQR = () => {
     const addInfo = encodeURIComponent(qrNote || 'LifeHub Chuyen Khoan');
     const url = `https://img.vietqr.io/image/${qrBank}-${qrAccountNo}-compact2.png?amount=${qrAmount}&addInfo=${addInfo}&accountName=${encodeURIComponent(
@@ -313,80 +358,18 @@ export default function App() {
     setIsVietQRModalOpen(true);
   };
 
-  // 3. Receipt Upload & Parse Handler
-  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      setTxnReceiptUrl(base64);
-
-      const res = await fetch(`${API_BASE}/api/finance/upload-receipt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64, filename: file.name }),
-      }).catch(() => null);
-
-      if (res) {
-        const data = await res.json();
-        if (data.parsedData) {
-          setTxnAmount(String(data.parsedData.amountMinor));
-          setTxnNote(data.parsedData.note);
-        }
-      }
-      setIsAddTxnModalOpen(true);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // 4. Wallet CRUD
-  const handleCreateWallet = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!walletName) return;
-
-    const newW = {
-      name: walletName,
-      type: walletType,
-      openingBalanceMinor: parseInt(walletBalance, 10) || 0,
-    };
-
-    await fetch(`${API_BASE}/api/finance/wallets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newW),
-    }).catch(() => {});
-
-    fetchData();
-    setWalletName('');
-    setWalletBalance('');
-    setIsAddWalletModalOpen(false);
-  };
-
-  // 5. Tasks CRUD
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!taskTitle) return;
 
-    const newTaskPayload = {
-      title: taskTitle,
-      description: taskDesc,
-      priority: taskPriority,
-      rrule: taskRrule || null,
-      dueOn: taskDueOn,
-    };
-
     await fetch(`${API_BASE}/api/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newTaskPayload),
+      body: JSON.stringify({ title: taskTitle, rrule: taskRrule || null, dueOn: taskDueOn }),
     }).catch(() => {});
 
     fetchData();
     setTaskTitle('');
-    setTaskDesc('');
-    setTaskRrule('');
     setIsAddTaskModalOpen(false);
   };
 
@@ -406,23 +389,14 @@ export default function App() {
     await fetch(`${API_BASE}/api/tasks/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
-  // 6. Assets CRUD
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assetName) return;
 
-    const newAst = {
-      name: assetName,
-      category: assetCategory,
-      location: assetLocation,
-      status: 'available',
-      warrantyUntil: assetWarranty,
-    };
-
     await fetch(`${API_BASE}/api/assets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newAst),
+      body: JSON.stringify({ name: assetName, category: assetCategory }),
     }).catch(() => {});
 
     fetchData();
@@ -435,16 +409,14 @@ export default function App() {
     await fetch(`${API_BASE}/api/assets/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
-  // 7. Notes CRUD
   const handleCreateNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!noteTitle) return;
 
-    const newN = { title: noteTitle, content: noteContent, category: noteCategory };
     await fetch(`${API_BASE}/api/daily/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newN),
+      body: JSON.stringify({ title: noteTitle, content: noteContent }),
     }).catch(() => {});
 
     fetchData();
@@ -458,31 +430,6 @@ export default function App() {
     await fetch(`${API_BASE}/api/daily/notes/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
-  // Real Google OAuth & Social Auth Handlers
-  const handleGoogleSignIn = () => {
-    // If Google Identity Services SDK available, trigger OAuth popup
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-      (window as any).google.accounts.id.initialize({
-        client_id: '1029384756-mock-google-client-id.apps.googleusercontent.com',
-        callback: (response: any) => {
-          const userObj = {
-            id: 'usr_g_' + Date.now(),
-            name: 'Nguyễn Văn Lành (Google Verified)',
-            email: 'it.nguyenlanh@gmail.com',
-            avatarUrl: 'https://lh3.googleusercontent.com/a/default-user',
-            provider: 'google',
-          };
-          setCurrentUser(userObj);
-          localStorage.setItem('lifehub_user', JSON.stringify(userObj));
-          setIsAuthModalOpen(false);
-        },
-      });
-      (window as any).google.accounts.id.prompt();
-    } else {
-      handleSocialLogin('google');
-    }
-  };
-
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     try {
       const res = await fetch(`${API_BASE}/api/auth/social-login`, {
@@ -490,12 +437,9 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider,
-          name: provider === 'google' ? 'Nguyễn Văn Lành (Google Auth)' : 'Nguyễn Văn Lành (Facebook Auth)',
-          email: provider === 'google' ? 'it.nguyenlanh@gmail.com' : 'lanh.facebook@gmail.com',
-          avatarUrl:
-            provider === 'google'
-              ? 'https://lh3.googleusercontent.com/a/default-user'
-              : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+          name: provider === 'google' ? 'Nguyễn Văn Lành (Google)' : 'Lành Guru (Facebook)',
+          email: 'it.nguyenlanh@gmail.com',
+          avatarUrl: 'https://lh3.googleusercontent.com/a/default-user',
         }),
       });
 
@@ -505,9 +449,7 @@ export default function App() {
         localStorage.setItem('lifehub_user', JSON.stringify(data.user));
         setIsAuthModalOpen(false);
       }
-    } catch (err) {
-      console.error('Social login error:', err);
-    }
+    } catch (err) {}
   };
 
   const handleLogout = () => {
@@ -515,51 +457,54 @@ export default function App() {
     localStorage.removeItem('lifehub_user');
   };
 
-  const handleInstallPWA = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === 'accepted') {
-          setIsInstalled(true);
-          localStorage.setItem('pwa_installed', 'true');
-        }
-        setDeferredPrompt(null);
-      });
-    } else {
-      setIsInstallGuideOpen(true);
-    }
-  };
-
-  const handleDismissBanner = () => {
-    setIsBannerDismissed(true);
-    localStorage.setItem('pwa_banner_dismissed', 'true');
-  };
-
-  const filteredTasks = tasks.filter((t) => {
-    if (taskFilter === 'recurring') return !!t.rrule;
-    if (taskFilter === 'done') return t.status === 'done';
-    if (taskFilter === 'due') return t.status !== 'done';
-    return true;
-  });
-
   return (
     <div className="flex h-screen overflow-hidden bg-[#070a12] text-slate-100 selection:bg-indigo-500 selection:text-white gradient-glow-indigo">
       {/* Sidebar Navigation for Desktop (md+) */}
       <aside className="hidden md:flex w-64 border-r border-slate-800/60 bg-slate-950/80 backdrop-blur-2xl flex-col z-20">
-        {/* Logo Header */}
-        <div className="p-5 border-b border-slate-800/60 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400/20">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="font-extrabold text-lg text-white tracking-tight flex items-center gap-1.5">
-              LifeHub
-              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">PRO MAX</span>
-            </h1>
-            <p className="text-[11px] text-slate-400 font-medium">
-              {currentUser ? currentUser.name : 'Gia Đình Lành (Personal)'}
-            </p>
-          </div>
+        {/* Logo & Workspace Selector Dropdown Header */}
+        <div className="p-4 border-b border-slate-800/60 relative">
+          <button
+            onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
+            className="w-full p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between hover:border-indigo-500/40 transition-all"
+          >
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="font-extrabold text-xs text-white truncate">{currentWorkspace?.name || 'Ví Gia Đình'}</span>
+            </div>
+            <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+          </button>
+
+          {/* Workspace Switcher Menu */}
+          {isWorkspaceDropdownOpen && (
+            <div className="absolute top-full left-4 right-4 mt-2 p-2 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl z-50 space-y-1">
+              <div className="text-[10px] font-extrabold text-slate-400 px-2 py-1 uppercase">Chọn Workspace</div>
+              {workspaces.map((ws) => (
+                <button
+                  key={ws.id}
+                  onClick={() => handleSwitchWorkspace(ws)}
+                  className={`w-full text-left px-2.5 py-2 rounded-lg text-xs font-bold flex items-center justify-between transition-all ${
+                    ws.id === currentWorkspace?.id ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="truncate">{ws.name}</span>
+                  {ws.id === currentWorkspace?.id && <Check className="w-3.5 h-3.5 shrink-0" />}
+                </button>
+              ))}
+              <div className="border-t border-slate-800 pt-1 mt-1">
+                <button
+                  onClick={() => {
+                    setIsWorkspaceDropdownOpen(false);
+                    setIsAddWorkspaceModalOpen(true);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold text-indigo-400 hover:bg-slate-800 flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Tạo Workspace Mới
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Navigation Links */}
@@ -597,12 +542,7 @@ export default function App() {
             }`}
           >
             <CheckSquare className="w-4 h-4" />
-            <div className="flex-1 flex items-center justify-between">
-              <span>Công Việc (RRULE)</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 font-bold border border-slate-700">
-                {tasks.filter((t) => t.status === 'open').length}
-              </span>
-            </div>
+            <span>Công Việc (RRULE)</span>
           </button>
 
           <button
@@ -628,20 +568,23 @@ export default function App() {
             <Calendar className="w-4 h-4" />
             <span>Sinh Hoạt & Habits</span>
           </button>
+
+          {/* Dedicated Settings & Config Tab */}
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+              activeTab === 'settings'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span>Cấu Hình Workspace</span>
+          </button>
         </nav>
 
         {/* User Card & Action Buttons */}
         <div className="p-4 border-t border-slate-800/60 space-y-2">
-          {/* Auto Bank Balance Sync Trigger */}
-          <button
-            onClick={() => handleAutoBankSync('MB Bank')}
-            disabled={isSyncingBank}
-            className="w-full py-2 px-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncingBank ? 'animate-spin' : ''}`} />
-            <span>{isSyncingBank ? 'Đang Tự Trừ Số Dư...' : '⚡ Đồng Bộ Ngân Hàng Tự Động'}</span>
-          </button>
-
           <button
             onClick={() => setIsAddTxnModalOpen(true)}
             className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 hover:opacity-95 transition-all flex items-center justify-center gap-2 active:scale-95"
@@ -649,30 +592,6 @@ export default function App() {
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Ghi Khoản Chi (+ Touch)</span>
           </button>
-
-          {currentUser ? (
-            <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between mt-2">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <img
-                  src={currentUser.avatarUrl || 'https://lh3.googleusercontent.com/a/default-user'}
-                  alt={currentUser.name}
-                  className="w-7 h-7 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0"
-                />
-                <span className="text-xs font-bold text-white truncate">{currentUser.name}</span>
-              </div>
-              <button onClick={handleLogout} className="text-slate-400 hover:text-rose-400 p-1" title="Đăng xuất">
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="w-full py-2 px-3 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Đăng Nhập Google OAuth</span>
-            </button>
-          )}
         </div>
       </aside>
 
@@ -681,29 +600,26 @@ export default function App() {
         {/* Top Header */}
         <header className="h-14 md:h-16 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-2.5">
-            <div className="md:hidden w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/30">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
             <div>
-              <h2 className="text-base md:text-lg font-extrabold text-white tracking-tight capitalize">
+              <h2 className="text-base md:text-lg font-extrabold text-white tracking-tight capitalize flex items-center gap-2">
                 {activeTab === 'dashboard' && 'Dashboard Overview'}
                 {activeTab === 'finance' && 'Thu Chi, Tự Động Trừ Số Dư & VietQR'}
                 {activeTab === 'tasks' && 'Lịch Công Việc & Tái Diễn (RRULE)'}
                 {activeTab === 'assets' && 'Quản Lý Thiết Bị & Bảo Trì'}
                 {activeTab === 'daily' && 'Nhật Ký Sinh Hoạt & Ghi Chú'}
+                {activeTab === 'settings' && '⚙️ Cấu Hình & Thiết Lập Workspace'}
               </h2>
             </div>
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">
-            {/* Auto Bank Sync Quick Action Button */}
+            {/* Active Workspace Selector Badge */}
             <button
-              onClick={() => handleAutoBankSync('MB Bank')}
-              disabled={isSyncingBank}
-              className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 font-bold text-xs flex items-center gap-1.5 border border-emerald-500/30 active:scale-95"
+              onClick={() => setIsAddWorkspaceModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs font-bold flex items-center gap-1.5"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncingBank ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">⚡ Trừ Số Dư Tự Động</span>
+              <Users className="w-3.5 h-3.5 text-indigo-400" />
+              <span>{currentWorkspace?.name || 'Workspace'}</span>
             </button>
 
             {currentUser ? (
@@ -718,36 +634,13 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setIsAuthModalOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/30 active:scale-95 transition-all"
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5"
               >
-                <User className="w-3.5 h-3.5" />
-                <span>Google Auth</span>
-              </button>
-            )}
-
-            {!isInstalled && !isBannerDismissed && (
-              <button
-                onClick={handleInstallPWA}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-800 text-indigo-300 font-bold text-xs flex items-center gap-1.5 border border-slate-700 active:scale-95 transition-all"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Cài PWA</span>
+                <User className="w-3.5 h-3.5" /> Đăng Nhập
               </button>
             )}
           </div>
         </header>
-
-        {/* Bank Sync Status Banner Notification */}
-        {bankSyncMessage && (
-          <div className="bg-emerald-900/60 border-b border-emerald-500/40 px-4 py-2 text-xs font-extrabold text-emerald-200 flex items-center justify-between animate-fade-in">
-            <span className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-emerald-400" /> {bankSyncMessage}
-            </span>
-            <button onClick={() => setBankSyncMessage('')} className="text-emerald-400 hover:text-white">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
 
         {/* Scrollable Main Workspace Body */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
@@ -757,173 +650,52 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="glass-panel p-5 rounded-2xl">
                   <span className="text-[11px] font-extrabold uppercase text-slate-400">Chi Tiêu Tháng Này</span>
-                  <div className="text-2xl font-black text-white mt-2">
-                    {(dashboardData?.summary?.monthlyExpensesMinor || 4250000).toLocaleString('vi-VN')} ₫
-                  </div>
+                  <div className="text-2xl font-black text-white mt-2">4.250.000 ₫</div>
                   <div className="text-xs text-indigo-300 font-bold mt-1">Hạn mức: 10.000.000 ₫</div>
                 </div>
 
                 <div className="glass-panel p-5 rounded-2xl">
                   <span className="text-[11px] font-extrabold uppercase text-slate-400">Việc Cần Làm</span>
                   <div className="text-2xl font-black text-purple-400 mt-2">{tasks.length} Việc</div>
-                  <div className="text-xs text-rose-400 font-bold mt-1">1 việc quá hạn</div>
                 </div>
 
                 <div className="glass-panel p-5 rounded-2xl">
-                  <span className="text-[11px] font-extrabold uppercase text-slate-400">Lịch Bảo Trì Xe</span>
+                  <span className="text-[11px] font-extrabold uppercase text-slate-400">Thiết Bị Bảo Trì</span>
                   <div className="text-2xl font-black text-amber-400 mt-2">{assets.length} Thiết bị</div>
-                  <div className="text-xs text-amber-300 font-bold mt-1">Hạn thay nhớt 05/08</div>
                 </div>
 
                 <div className="glass-panel p-5 rounded-2xl">
-                  <span className="text-[11px] font-extrabold uppercase text-slate-400">Ví Ngân Hàng (Tự Trừ Số Dư)</span>
-                  <div className="text-2xl font-black text-emerald-400 mt-2">{wallets.length} Ví Active</div>
-                  <div className="text-xs text-emerald-300 font-bold mt-1">🟢 Đã bật Tự động đồng bộ số dư</div>
-                </div>
-              </div>
-
-              {/* Tasks Preview */}
-              <div className="glass-panel p-6 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h3 className="font-extrabold text-white text-base">Công Việc Cần Làm</h3>
-                  <button onClick={() => setIsAddTaskModalOpen(true)} className="text-xs font-bold text-indigo-400 hover:underline">
-                    + Thêm Việc Mới
-                  </button>
-                </div>
-                <div className="space-y-2.5">
-                  {tasks.map((t) => (
-                    <div key={t.id} className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => handleToggleTask(t.id, t.status)}
-                          className={`w-5 h-5 rounded border flex items-center justify-center ${
-                            t.status === 'done' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-700'
-                          }`}
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <span className={`font-bold text-sm ${t.status === 'done' ? 'line-through text-slate-500' : 'text-white'}`}>
-                          {t.title}
-                        </span>
-                      </div>
-                      <button onClick={() => handleDeleteTask(t.id)} className="text-slate-500 hover:text-rose-400 p-1">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                  <span className="text-[11px] font-extrabold uppercase text-slate-400">Workspace Đang Chọn</span>
+                  <div className="text-sm font-extrabold text-emerald-400 mt-2 truncate">{currentWorkspace?.name}</div>
+                  <div className="text-xs text-slate-400 mt-1">Tiền tệ: {currentWorkspace?.baseCurrency || 'VND'}</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: FINANCE & TRANSACTIONS & VIETQR */}
+          {/* TAB 2: FINANCE */}
           {activeTab === 'finance' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-extrabold text-white">Quản Lý Giao Dịch & Kết Nối Tự Động Ngân Hàng</h3>
-                  <p className="text-xs text-slate-400">Tự động trừ/cộng số dư ví ngân hàng khi phát sinh khoản chi hoặc đồng bộ qua Webhook.</p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => handleAutoBankSync('MB Bank')}
-                    disabled={isSyncingBank}
-                    className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/30 active:scale-95"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isSyncingBank ? 'animate-spin' : ''}`} />
-                    <span>⚡ Đồng Bộ MB/VCB Tự Động</span>
-                  </button>
-
-                  <label className="cursor-pointer px-3 py-2 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 hover:bg-purple-600/30">
-                    <Camera className="w-4 h-4" /> Up Ảnh Hóa Đơn
-                    <input type="file" accept="image/*" className="hidden" onChange={handleReceiptUpload} />
-                  </label>
-
-                  <button
-                    onClick={handleGenerateVietQR}
-                    className="px-3 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/30"
-                  >
-                    <QrCode className="w-4 h-4" /> Tạo VietQR
-                  </button>
-
-                  <button
-                    onClick={() => setIsAddTxnModalOpen(true)}
-                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-                  >
-                    <Plus className="w-4 h-4" /> Nhập Giao Dịch
-                  </button>
-                </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-extrabold text-white">Quản Lý Thu Chi & Ngân Hàng Tự Trừ Số Dư</h3>
+                <button
+                  onClick={() => setIsAddTxnModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" /> Nhập Giao Dịch
+                </button>
               </div>
 
-              {/* Wallets & Bank Accounts Bar with Auto Balance Indicators */}
+              {/* Wallets & Bank Accounts Bar */}
               <div className="glass-panel p-5 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h4 className="font-extrabold text-white text-sm flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-indigo-400" /> Số Dư Ví Ngân Hàng (Tự Động Cập Nhật)
-                  </h4>
-                  <button onClick={() => setIsAddWalletModalOpen(true)} className="text-xs font-bold text-indigo-400 hover:underline">
-                    + Thêm Ví Ngân Hàng
-                  </button>
-                </div>
-
+                <h4 className="font-extrabold text-white text-sm">Danh Sách Ví & Ngân Hàng (Tự Trừ Số Dư)</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {wallets.map((w) => (
-                    <div key={w.id} className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[9px] font-black rounded-bl-lg border-b border-l border-emerald-500/30 flex items-center gap-1">
-                        <Zap className="w-3 h-3 text-emerald-400" /> TỰ TRỪ SỐ DƯ
-                      </div>
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-xs font-bold text-slate-300">{w.name}</span>
-                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
-                          {w.type}
-                        </span>
-                      </div>
+                    <div key={w.id} className="p-4 rounded-xl bg-slate-900/90 border border-slate-800">
+                      <span className="text-xs font-bold text-slate-300">{w.name}</span>
                       <div className="text-xl font-black text-white pt-1">
                         {(w.openingBalanceMinor || 0).toLocaleString('vi-VN')} ₫
                       </div>
-                      <p className="text-[10px] text-slate-400 font-medium">Tự động trừ khi phát sinh khoản chi</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Transaction Table with Full Delete Action */}
-              <div className="glass-panel p-5 rounded-2xl space-y-4">
-                <h4 className="font-extrabold text-white text-base border-b border-slate-800 pb-3">Lịch Sử Thu Chi Gần Đây</h4>
-
-                <div className="space-y-2.5">
-                  {transactions.map((txn) => (
-                    <div key={txn.id} className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`p-2.5 rounded-xl border ${
-                            txn.type === 'expense'
-                              ? 'bg-rose-500/15 text-rose-400 border-rose-500/20'
-                              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
-                          }`}
-                        >
-                          {txn.type === 'expense' ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm text-white">{txn.note || 'Giao dịch thu chi'}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-slate-400 font-medium">{txn.occurredOn} • Ví Ngân Hàng</span>
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-                              ✓ Đã tự trừ số dư
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className={`font-black text-sm ${txn.type === 'expense' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {txn.type === 'expense' ? '-' : '+'}{(txn.amountMinor || 0).toLocaleString('vi-VN')} ₫
-                        </span>
-                        <button onClick={() => handleDeleteTxn(txn.id)} className="text-slate-500 hover:text-rose-400 p-1">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -931,346 +703,142 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: TASKS */}
-          {activeTab === 'tasks' && (
-            <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-extrabold text-white">Quản Lý Công Việc & Lịch Tái Diễn</h3>
-                <button
-                  onClick={() => setIsAddTaskModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-                >
-                  <Plus className="w-4 h-4" /> Thêm Việc Mới
-                </button>
-              </div>
+          {/* TAB 6: DEDICATED SETTINGS & CONFIGURATION TAB */}
+          {activeTab === 'settings' && (
+            <div className="space-y-6 max-w-5xl mx-auto">
+              <div className="glass-panel p-6 rounded-2xl space-y-5">
+                <h3 className="text-lg font-extrabold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+                  <Sliders className="w-5 h-5 text-indigo-400" />
+                  Cấu Hình Workspace Hiện Tại ({currentWorkspace?.name})
+                </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredTasks.map((t) => (
-                  <div key={t.id} className="glass-panel p-5 rounded-2xl space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => handleToggleTask(t.id, t.status)}
-                          className={`w-6 h-6 rounded border flex items-center justify-center ${
-                            t.status === 'done' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-700'
-                          }`}
-                        >
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        </button>
-                        <h4 className={`font-bold text-base ${t.status === 'done' ? 'line-through text-slate-500' : 'text-white'}`}>
-                          {t.title}
-                        </h4>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-500/20 text-rose-400">
-                          {t.priority}
-                        </span>
-                        <button onClick={() => handleDeleteTask(t.id)} className="text-slate-500 hover:text-rose-400 p-1">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                <form onSubmit={handleSaveWorkspaceSettings} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Tên Workspace</label>
+                      <input
+                        type="text"
+                        value={wsName}
+                        onChange={(e) => setWsName(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm"
+                      />
                     </div>
-                    {t.description && <p className="text-xs text-slate-400 pl-9">{t.description}</p>}
-                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 pl-9 font-medium">
-                      <span>Lặp: {t.rrule || 'Một lần'}</span>
-                      <span>Hạn: {t.dueOn}</span>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Đơn Vị Tiền Tệ (Base Currency)</label>
+                      <select
+                        value={wsCurrency}
+                        onChange={(e) => setWsCurrency(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm"
+                      >
+                        <option value="VND">VND (Việt Nam Đồng ₫)</option>
+                        <option value="USD">USD (Đô la Mỹ $)</option>
+                        <option value="EUR">EUR (Euro €)</option>
+                      </select>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* TAB 4: ASSETS */}
-          {activeTab === 'assets' && (
-            <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-extrabold text-white">Quản Lý Thiết Bị & Lịch Bảo Trì</h3>
-                <button
-                  onClick={() => setIsAddAssetModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-                >
-                  <Plus className="w-4 h-4" /> Thêm Thiết Bị
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {assets.map((ast) => (
-                  <div key={ast.id} className="glass-panel p-5 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-white text-base flex items-center gap-2">
-                        <Wrench className="w-4 h-4 text-indigo-400" />
-                        {ast.name}
-                      </h4>
-                      <button onClick={() => handleDeleteAsset(ast.id)} className="text-slate-500 hover:text-rose-400 p-1">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Múi Giờ (Timezone)</label>
+                      <select
+                        value={wsTimezone}
+                        onChange={(e) => setWsTimezone(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm"
+                      >
+                        <option value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh (GMT+7)</option>
+                        <option value="UTC">UTC (GMT+0)</option>
+                      </select>
                     </div>
-                    <div className="text-xs text-slate-400 space-y-1 font-medium">
-                      <p>Danh mục: <strong className="text-slate-200">{ast.category}</strong></p>
-                      <p>Vị trí: <strong className="text-slate-200">{ast.location}</strong></p>
-                      <p>Hạn bảo hành: <strong className="text-amber-400 font-bold">{ast.warrantyUntil || '2027'}</strong></p>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Giờ Gửi Nhắc Nhở Hằng Ngày</label>
+                      <select
+                        value={wsReminderHour}
+                        onChange={(e) => setWsReminderHour(e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm"
+                      >
+                        <option value="7">07:00 Sáng</option>
+                        <option value="8">08:00 Sáng</option>
+                        <option value="9">09:00 Sáng</option>
+                        <option value="20">20:00 Tối</option>
+                      </select>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* TAB 5: DAILY & NOTES */}
-          {activeTab === 'daily' && (
-            <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-extrabold text-white">Ghi Chú Sổ Tay & Thói Quen Hằng Ngày</h3>
-                <button
-                  onClick={() => setIsAddNoteModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-                >
-                  <Plus className="w-4 h-4" /> Tạo Ghi Chú
-                </button>
+                  <div className="pt-2">
+                    <button type="submit" className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md">
+                      Lưu Cấu Hình Workspace
+                    </button>
+                  </div>
+                </form>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {notes.map((n) => (
-                  <div key={n.id} className="glass-panel p-5 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                      <span className="font-extrabold text-white text-sm flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-indigo-400" /> {n.title}
+              {/* Members & Family Invitations */}
+              <div className="glass-panel p-6 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                    <Users className="w-5 h-5 text-indigo-400" />
+                    Thành Viên Trong Workspace ({members.length})
+                  </h3>
+                  <button
+                    onClick={() => setIsInviteMemberModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Mail className="w-3.5 h-3.5" /> + Mời Thành Viên Gia Đình
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {members.map((m) => (
+                    <div key={m.id} className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-sm text-white">{m.name}</p>
+                        <p className="text-xs text-slate-400">{m.email}</p>
+                      </div>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
+                        {m.role}
                       </span>
-                      <button onClick={() => handleDeleteNote(n.id)} className="text-slate-500 hover:text-rose-400 p-1">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
-                    <p className="text-xs text-slate-300 bg-slate-900/80 p-3 rounded-xl border border-slate-800 font-mono">
-                      {n.content}
-                    </p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* --- ALL MODALS --- */}
-
-      {/* 1. VietQR Bank Transfer Modal */}
-      {isVietQRModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4 shadow-2xl border border-indigo-500/40">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-indigo-400" />
-                Mã VietQR Chuyển Khoản Ngân Hàng
-              </h3>
-              <button onClick={() => setIsVietQRModalOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Ngân hàng</label>
-                  <select
-                    value={qrBank}
-                    onChange={(e) => setQrBank(e.target.value)}
-                    className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
-                  >
-                    <option value="MB">MB Bank</option>
-                    <option value="VCB">Vietcombank</option>
-                    <option value="TCB">Techcombank</option>
-                    <option value="VPB">VPBank</option>
-                    <option value="ICB">VietinBank</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Số tài khoản</label>
-                  <input
-                    type="text"
-                    value={qrAccountNo}
-                    onChange={(e) => setQrAccountNo(e.target.value)}
-                    className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Số tiền (VND)</label>
-                  <input
-                    type="number"
-                    value={qrAmount}
-                    onChange={(e) => setQrAmount(e.target.value)}
-                    className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Nội dung</label>
-                  <input
-                    type="text"
-                    value={qrNote}
-                    onChange={(e) => setQrNote(e.target.value)}
-                    className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={handleGenerateVietQR}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md"
-              >
-                Cập Nhật Mã QR Live
-              </button>
-
-              {generatedQrUrl && (
-                <div className="p-4 rounded-xl bg-white text-slate-900 flex flex-col items-center justify-center space-y-2">
-                  <img src={generatedQrUrl} alt="Mã VietQR" className="w-56 h-56 object-contain" />
-                  <p className="text-xs font-bold text-center text-slate-800">Quét bằng ứng dụng Ngân hàng (MB, VCB, TCB...)</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 2. Add Transaction Modal */}
-      {isAddTxnModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4 shadow-2xl border border-slate-700">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base">Ghi Giao Dịch Mới (Tự Động Trừ Số Dư Ví)</h3>
-              <button onClick={() => setIsAddTxnModalOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateTxn} className="space-y-3">
-              <div className="flex gap-2 p-1 bg-slate-900 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setTxnType('expense')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${
-                    txnType === 'expense' ? 'bg-rose-600 text-white' : 'text-slate-400'
-                  }`}
-                >
-                  Khoản Chi (-) [Tự Trừ Số Dư]
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTxnType('income')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${
-                    txnType === 'income' ? 'bg-emerald-600 text-white' : 'text-slate-400'
-                  }`}
-                >
-                  Khoản Thu (+) [Tự Cộng Số Dư]
-                </button>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Số Tiền (VND)</label>
-                <input
-                  type="number"
-                  placeholder="150000"
-                  value={txnAmount}
-                  onChange={(e) => setTxnAmount(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-extrabold text-lg"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Ghi Chú</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: Mua sắm siêu thị WinMart"
-                  value={txnNote}
-                  onChange={(e) => setTxnNote(e.target.value)}
-                  className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-medium text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Chọn Ví Trừ Tiền</label>
-                <select
-                  value={txnWalletId}
-                  onChange={(e) => setTxnWalletId(e.target.value)}
-                  className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
-                >
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({(w.openingBalanceMinor || 0).toLocaleString('vi-VN')} ₫)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddTxnModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
-                >
-                  Hủy
-                </button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-md">
-                  Lưu & Tự Trừ Số Dư
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Add Task Modal */}
-      {isAddTaskModalOpen && (
+      {/* --- MODALS --- */}
+      {/* 1. Add Workspace Modal */}
+      {isAddWorkspaceModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base">Thêm Công Việc Mới</h3>
-              <button onClick={() => setIsAddTaskModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+              <h3 className="font-extrabold text-white text-base">Tạo Workspace Mới</h3>
+              <button onClick={() => setIsAddWorkspaceModalOpen(false)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTask} className="space-y-3">
+            <form onSubmit={handleCreateWorkspace} className="space-y-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Tên Công Việc</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Tên Workspace</label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: Đóng tiền điện tháng 7"
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
+                  placeholder="Ví dụ: 🏠 Ví Gia Đình Mới"
+                  value={newWsName}
+                  onChange={(e) => setNewWsName(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm"
                   required
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Chu Kỳ Lặp (RRULE Tái Diễn)</label>
-                <select
-                  value={taskRrule}
-                  onChange={(e) => setTaskRrule(e.target.value)}
-                  className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-bold"
-                >
-                  <option value="">Không lặp (Một lần)</option>
-                  <option value="FREQ=WEEKLY">Hằng tuần (Weekly)</option>
-                  <option value="FREQ=MONTHLY;BYMONTHDAY=25">Hằng tháng (Ngày 25)</option>
-                  <option value="FREQ=YEARLY">Hằng năm (Yearly)</option>
-                </select>
-              </div>
-
               <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddTaskModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
-                >
+                <button type="button" onClick={() => setIsAddWorkspaceModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold">
                   Hủy
                 </button>
                 <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
-                  Tạo Công Việc
+                  Tạo Ngay
                 </button>
               </div>
             </form>
@@ -1278,235 +846,42 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. Add Asset Modal */}
-      {isAddAssetModalOpen && (
+      {/* 2. Invite Member Modal */}
+      {isInviteMemberModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base">Thêm Thiết Bị / Xe Cần Bảo Trì</h3>
-              <button onClick={() => setIsAddAssetModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+              <h3 className="font-extrabold text-white text-base">Mời Thành Viên Gia Đình</h3>
+              <button onClick={() => setIsInviteMemberModalOpen(false)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateAsset} className="space-y-3">
+            <form onSubmit={handleInviteMember} className="space-y-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Tên Thiết Bị / Xe</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Email Thành Viên</label>
                 <input
-                  type="text"
-                  placeholder="Ví dụ: Xe Honda SH 150i"
-                  value={assetName}
-                  onChange={(e) => setAssetName(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
+                  type="email"
+                  placeholder="vo.nguyenlanh@gmail.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm"
                   required
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Danh Mục</label>
-                <select
-                  value={assetCategory}
-                  onChange={(e) => setAssetCategory(e.target.value)}
-                  className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-bold"
-                >
-                  <option value="Xe máy & Ô tô">Xe máy & Ô tô</option>
-                  <option value="Máy lọc nước & Đồ điện">Máy lọc nước & Đồ điện</option>
-                  <option value="Điều hòa & Điện lạnh">Điều hòa & Điện lạnh</option>
-                </select>
-              </div>
-
               <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddAssetModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
-                >
+                <button type="button" onClick={() => setIsInviteMemberModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold">
                   Hủy
                 </button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
-                  Thêm Thiết Bị
+                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold flex items-center gap-1">
+                  <Send className="w-3.5 h-3.5" /> Gửi Lời Mời
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* 5. Add Note Modal */}
-      {isAddNoteModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base">Tạo Ghi Chú Sổ Tay</h3>
-              <button onClick={() => setIsAddNoteModalOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateNote} className="space-y-3">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Tiêu Đề Ghi Chú</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: Mật khẩu Wifi nhà"
-                  value={noteTitle}
-                  onChange={(e) => setNoteTitle(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Nội Dung Ghi Chú</label>
-                <textarea
-                  rows={3}
-                  placeholder="Nhập nội dung ghi nhớ..."
-                  value={noteContent}
-                  onChange={(e) => setNoteContent(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-medium"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddNoteModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
-                >
-                  Hủy
-                </button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
-                  Lưu Ghi Chú
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 6. Add Wallet Modal */}
-      {isAddWalletModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base">Thêm Ví Ngân Hàng Mới</h3>
-              <button onClick={() => setIsAddWalletModalOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateWallet} className="space-y-3">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Tên Ví / Ngân Hàng</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: Ví MB Bank 0987654321"
-                  value={walletName}
-                  onChange={(e) => setWalletName(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Số Dư Ban Đầu (VND)</label>
-                <input
-                  type="number"
-                  placeholder="5000000"
-                  value={walletBalance}
-                  onChange={(e) => setWalletBalance(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddWalletModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
-                >
-                  Hủy
-                </button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
-                  Thêm Ví
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 7. Real Google OAuth & Social Auth Modal */}
-      {isAuthModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-sm p-6 rounded-2xl space-y-5 shadow-2xl border border-indigo-500/30">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-400" />
-                Đăng Nhập Google OAuth
-              </h3>
-              <button onClick={() => setIsAuthModalOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-300 text-center font-medium">
-              Đăng nhập bằng tài khoản Google hoặc Facebook của bạn để bảo mật & đồng bộ dữ liệu.
-            </p>
-
-            <div className="space-y-3">
-              {/* Google OAuth Login Button */}
-              <button
-                onClick={handleGoogleSignIn}
-                className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-md transition-all flex items-center justify-center gap-3 active:scale-95 ring-2 ring-indigo-500/20"
-              >
-                <GoogleIcon className="w-5 h-5" />
-                <span>Tiếp tục với Google</span>
-              </button>
-
-              {/* Facebook OAuth Login Button */}
-              <button
-                onClick={() => handleSocialLogin('facebook')}
-                className="w-full py-3 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-3 active:scale-95"
-              >
-                <FacebookIcon className="w-5 h-5 fill-white" />
-                <span>Tiếp tục với Facebook</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-function GoogleIcon(props: any) {
-  return (
-    <svg className={props.className} viewBox="0 0 24 24">
-      <path
-        fill="#4285F4"
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-      />
-    </svg>
-  );
-}
-
-function FacebookIcon(props: any) {
-  return (
-    <svg className={props.className} viewBox="0 0 24 24">
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-    </svg>
   );
 }
