@@ -19,7 +19,7 @@ import { TasksTab } from './components/TasksTab';
 import { AssetsTab } from './components/AssetsTab';
 import { DailyTab } from './components/DailyTab';
 import { SettingsTab } from './components/SettingsTab';
-import { X, QrCode, Zap, Sparkles, User, ShieldCheck, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, QrCode, Zap, Sparkles, User, ShieldCheck, Lock } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ModuleTab>('dashboard');
@@ -27,8 +27,8 @@ export default function App() {
 
   // Core State
   const [workspaces, setWorkspaces] = useState<Workspace[]>([
-    { id: 'ws_personal_01', name: '🏠 Ví Cá Nhân - Lành Guru', type: 'personal', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
-    { id: 'ws_family_02', name: '👨‍👩‍👧‍👦 Ví Gia Đình Lành', type: 'team', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
+    { id: 'ws_personal_01', name: '🏠 Ví Cá Nhân', type: 'personal', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
+    { id: 'ws_family_02', name: '👨‍👩‍👧‍👦 Ví Gia Đình', type: 'team', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
     { id: 'ws_company_03', name: '💼 Bảo Trì Công Ty / Sufruit', type: 'team', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
   ]);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(workspaces[0]);
@@ -53,7 +53,7 @@ export default function App() {
   const [isSyncingBank, setIsSyncingBank] = useState(false);
   const [bankSyncMessage, setBankSyncMessage] = useState('');
 
-  // User Authentication State
+  // Strict User Authentication State (Defaults to NULL if not logged in)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem('lifehub_user');
@@ -327,55 +327,27 @@ export default function App() {
     setBankSyncMessage(`Đã gửi lời mời thành viên ${email}!`);
   };
 
-  // 1-Click Direct Google Sign-In
-  const handleDirectGoogleLogin = async () => {
-    const defaultUser: UserProfile = {
-      id: 'usr_g_' + Date.now(),
-      name: 'Nguyễn Văn Lành (Google Verified)',
-      email: 'it.nguyenlanh@gmail.com',
-      avatarUrl: 'https://lh3.googleusercontent.com/a/default-user',
-      provider: 'google',
-    };
+  // Official Google Real OAuth Sign-In (Direct Redirect & Account Selection)
+  const handleRealGoogleOAuth = (mode: 'redirect' | 'popup') => {
+    const callbackHost = 'https://lifehub-api.alita.vn/api/auth/google/callback';
+    const redirectUri = encodeURIComponent(callbackHost);
+    const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=select_account`;
 
-    try {
-      const res = await fetchApi<{ user: UserProfile }>('/api/auth/social-login', {
-        method: 'POST',
-        body: JSON.stringify(defaultUser),
-      }).catch(() => null);
-
-      const userToSave = res?.user || defaultUser;
-      setCurrentUser(userToSave);
-      localStorage.setItem('lifehub_user', JSON.stringify(userToSave));
-      setIsAuthModalOpen(false);
-    } catch (err) {
-      setCurrentUser(defaultUser);
-      localStorage.setItem('lifehub_user', JSON.stringify(defaultUser));
-      setIsAuthModalOpen(false);
-    }
-  };
-
-  // Google OAuth Social Sign-In Popup Handler
-  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
-    if (provider === 'google') {
-      const callbackHost = 'https://lifehub-api.alita.vn/api/auth/google/callback';
-      const redirectUri = encodeURIComponent(callbackHost);
-      const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=consent`;
-
-      const width = 500;
-      const height = 600;
-      const left = window.screenX + (window.innerWidth - width) / 2;
-      const top = window.screenY + (window.innerHeight - height) / 2;
-      
-      const popup = window.open(googleUrl, 'GoogleAuthWindow', `width=${width},height=${height},left=${left},top=${top}`);
-      
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        // Popups blocked by browser -> fallback to direct Google sign in
-        handleDirectGoogleLogin();
-      }
+    if (mode === 'redirect') {
+      window.location.href = googleUrl;
       return;
     }
 
-    handleDirectGoogleLogin();
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.innerWidth - width) / 2;
+    const top = window.screenY + (window.innerHeight - height) / 2;
+    const popup = window.open(googleUrl, 'GoogleAuthWindow', `width=${width},height=${height},left=${left},top=${top}`);
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      // Fallback to full page redirect if popup is blocked
+      window.location.href = googleUrl;
+    }
   };
 
   const handleLogout = () => {
@@ -424,36 +396,36 @@ export default function App() {
 
           <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 text-left">
             <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-              <Lock className="w-4 h-4" /> Yêu Cầu Đăng Nhập Bảo Mật
+              <Lock className="w-4 h-4" /> Yêu Cầu Đăng Nhập Tài Khoản Google Chính Chủ
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-              Đăng nhập bằng tài khoản Google của bạn (`it.nguyenlanh@gmail.com`) để bảo mật dữ liệu ví gia đình.
+              Vui lòng bấm chọn tài khoản Google của bạn trên hệ thống Google OAuth để mã hóa và đồng bộ dữ liệu ví cá nhân.
             </p>
           </div>
 
           <div className="space-y-3 pt-2">
-            {/* 1-Click Fast Google Sign-In Button */}
+            {/* Direct Google OAuth Login Button (Full Page Redirect & Account Selector) */}
             <button
-              onClick={handleDirectGoogleLogin}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-95 text-white font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 ring-2 ring-indigo-400/20"
+              onClick={() => handleRealGoogleOAuth('redirect')}
+              className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 ring-2 ring-indigo-500/30"
             >
-              <GoogleIcon className="w-5 h-5 bg-white rounded-full p-0.5" />
-              <span>⚡ Đăng nhập Nhanh Google 1-Chạm</span>
+              <GoogleIcon className="w-5 h-5" />
+              <span>Đăng nhập với Google chính chủ</span>
             </button>
 
-            {/* Google OAuth Popup Login Button */}
+            {/* Popup Google OAuth Login Button */}
             <button
-              onClick={() => handleSocialLogin('google')}
+              onClick={() => handleRealGoogleOAuth('popup')}
               className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center justify-center gap-2 active:scale-95"
             >
               <GoogleIcon className="w-4 h-4" />
-              <span>Xác thực Cửa sổ Popup Google OAuth</span>
+              <span>Đăng nhập bằng Cửa Sổ Bật Lên (Popup)</span>
             </button>
           </div>
 
           <div className="pt-2 text-[10px] text-slate-500 flex items-center justify-center gap-1 font-semibold">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Bảo mật chuẩn mã hóa Cloudflare D1 & JWT</span>
+            <span>Mã hóa bảo mật Google OAuth 2.0 & Cloudflare D1</span>
           </div>
         </div>
       </div>
@@ -917,14 +889,6 @@ function GoogleIcon(props: any) {
         fill="#EA4335"
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
       />
-    </svg>
-  );
-}
-
-function FacebookIcon(props: any) {
-  return (
-    <svg className={props.className} viewBox="0 0 24 24">
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
     </svg>
   );
 }
