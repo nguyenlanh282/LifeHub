@@ -41,6 +41,17 @@ app.onError((err, c) => {
   return c.json({ error: err.message, name: err.name }, 500);
 });
 
+// Root Route Handler
+app.get('/', (c) => {
+  return c.json({
+    status: 'ok',
+    app: 'LifeHub Serverless Worker API',
+    domain: 'lifehub-api.alita.vn',
+    documentation: 'https://lifehub.alita.vn',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Healthcheck
 app.get('/api/health', (c) => {
   return c.json({
