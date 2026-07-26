@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 
 export const authRouter = new Hono<{ Bindings: { DB: D1Database; GOOGLE_CLIENT_ID?: string; GOOGLE_CLIENT_SECRET?: string } }>();
 
-// 1. Official Google Identity Services (GSI) Token Verification Endpoint (100% Secure Cryptographic Verification)
+// 1. Official Google Identity Services (GSI) Token Verification Endpoint
 authRouter.post('/google/verify', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const { credential } = body;
@@ -15,7 +15,6 @@ authRouter.post('/google/verify', async (c) => {
   }
 
   try {
-    // Verify Google ID Token with Google's OAuth2 Token Verification Server
     const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
     if (!verifyRes.ok) {
       return c.json({ error: 'Invalid or expired Google ID token' }, 401);
@@ -29,7 +28,6 @@ authRouter.post('/google/verify', async (c) => {
       picture: payload.picture || 'https://lh3.googleusercontent.com/a/default-user',
     };
 
-    // Upsert into Cloudflare D1 SQLite Database
     if (c.env.DB) {
       try {
         const db = drizzle(c.env.DB, { schema });
@@ -87,59 +85,66 @@ authRouter.post('/google/verify', async (c) => {
 authRouter.get('/google/url', (c) => {
   const clientId = c.env.GOOGLE_CLIENT_ID || '11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com';
   const reqRedirectUri = c.req.query('redirect_uri');
-  const origin = new URL(c.req.url).origin;
-  const redirectUri = reqRedirectUri || (origin.includes('lifehub.alita.vn') ? 'https://lifehub-api.alita.vn/api/auth/google/callback' : `${origin}/api/auth/google/callback`);
+  const redirectUri = reqRedirectUri || 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
 
   const scope = encodeURIComponent('openid email profile');
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
     redirectUri
-  )}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+  )}&response_type=code&scope=${scope}&access_type=offline&prompt=select_account`;
 
   return c.json({ url: googleAuthUrl, provider: 'google', redirectUri });
 });
 
-// 3. Google OAuth Callback Handler
+// 3. Google OAuth Callback Handler (EXCHANGES CODE FOR REAL DYNAMIC GOOGLE USER PROFILE)
 authRouter.get('/google/callback', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.json({ error: 'Missing code parameter' }, 400);
 
   const clientId = c.env.GOOGLE_CLIENT_ID || '11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com';
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
-  
-  const reqRedirectUri = c.req.query('redirect_uri');
-  const origin = new URL(c.req.url).origin;
-  const redirectUri = reqRedirectUri || (origin.includes('lifehub.alita.vn') ? 'https://lifehub-api.alita.vn/api/auth/google/callback' : `${origin}/api/auth/google/callback`);
+  const redirectUri = 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
 
   try {
-    let googleUser = {
-      sub: 'google_user_' + Date.now(),
-      email: 'it.nguyenlanh@gmail.com',
-      name: 'Nguyễn Văn Lành',
-      picture: 'https://lh3.googleusercontent.com/a/default-user',
-    };
-
-    if (clientId && clientSecret) {
-      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          code,
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: redirectUri,
-          grant_type: 'authorization_code',
-        }),
-      });
-
-      const tokenData: any = await tokenRes.json();
-      if (tokenData.access_token) {
-        const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-          headers: { Authorization: `Bearer ${tokenData.access_token}` },
-        });
-        googleUser = (await userRes.json()) as any;
-      }
+    if (!clientSecret) {
+      return c.json({ error: 'Missing Google Client Secret binding' }, 500);
     }
 
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    const tokenData: any = await tokenRes.json();
+    if (!tokenData.access_token) {
+      console.error('Google token exchange error:', tokenData);
+      return c.json({ error: 'Google OAuth token exchange failed', details: tokenData }, 400);
+    }
+
+    // Fetch REAL dynamic user profile from Google UserInfo API
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+
+    if (!userRes.ok) {
+      return c.json({ error: 'Failed to fetch user profile from Google' }, 400);
+    }
+
+    const payload: any = await userRes.json();
+    const googleUser = {
+      sub: payload.id || payload.sub,
+      email: payload.email,
+      name: payload.name || payload.email.split('@')[0],
+      picture: payload.picture || 'https://lh3.googleusercontent.com/a/default-user',
+    };
+
+    // Upsert user into D1 Database
     if (c.env.DB) {
       try {
         const db = drizzle(c.env.DB, { schema });
@@ -214,10 +219,14 @@ authRouter.post('/social-login', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const { provider, name, email, avatarUrl } = body;
 
+  if (!email) {
+    return c.json({ error: 'Missing email' }, 400);
+  }
+
   const user = {
     id: `usr_${provider || 'social'}_${Date.now()}`,
-    email: email || `it.nguyenlanh@gmail.com`,
-    name: name || 'Nguyễn Văn Lành (Google Auth)',
+    email,
+    name: name || email.split('@')[0],
     avatarUrl: avatarUrl || 'https://lh3.googleusercontent.com/a/default-user',
     provider: provider || 'google',
   };
