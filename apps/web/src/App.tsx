@@ -328,8 +328,8 @@ export default function App() {
   };
 
   // Official Google Real OAuth Sign-In
-  const handleRealGoogleOAuth = (mode: 'redirect' | 'popup', targetHost?: string) => {
-    const callbackHost = targetHost || 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
+  const handleRealGoogleOAuth = (mode: 'redirect' | 'popup') => {
+    const callbackHost = 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
     const redirectUri = encodeURIComponent(callbackHost);
     const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=select_account`;
 
@@ -405,7 +405,7 @@ export default function App() {
           <div className="space-y-3 pt-2">
             {/* Unified Google OAuth Button */}
             <button
-              onClick={() => handleRealGoogleOAuth('redirect', 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback')}
+              onClick={() => handleRealGoogleOAuth('redirect')}
               className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 ring-2 ring-indigo-500/30"
             >
               <GoogleIcon className="w-5 h-5" />
