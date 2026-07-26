@@ -33,11 +33,30 @@ export default function App() {
   ]);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(workspaces[0]);
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([
+    { id: 'txn_1', type: 'expense', amountMinor: 450000, currency: 'VND', note: 'Mua sắm siêu thị WinMart', occurredOn: '2026-07-26', walletId: 'wal_mb' },
+    { id: 'txn_2', type: 'expense', amountMinor: 1250000, currency: 'VND', note: 'Thanh toán tiền điện & Internet tháng 7', occurredOn: '2026-07-25', walletId: 'wal_mb' },
+    { id: 'txn_3', type: 'income', amountMinor: 25000000, currency: 'VND', note: 'Lương chuyển khoản MB Bank', occurredOn: '2026-07-24', walletId: 'wal_mb' },
+  ]);
+  const [wallets, setWallets] = useState<Wallet[]>([
+    { id: 'wal_mb', name: 'Ví MB Bank 0987654321', type: 'bank', openingBalanceMinor: 10000000, balanceMinor: 15850000, currency: 'VND' },
+    { id: 'wal_vcb', name: 'Ví Vietcombank Sinh Hoạt', type: 'bank', openingBalanceMinor: 3000000, balanceMinor: 4200000, currency: 'VND' },
+    { id: 'wal_cash', name: 'Ví Tiền Mặt Gia Đình', type: 'cash', openingBalanceMinor: 1000000, balanceMinor: 1500000, currency: 'VND' },
+  ]);
+  const [tasks, setTasks] = useState<Task[]>([
+    { id: 'task_1', title: 'Thay nhớt xe máy Honda SH (Định kỳ 2.000km)', priority: 'high', status: 'open', rrule: 'FREQ=MONTHLY', dueOn: '2026-08-05' },
+    { id: 'task_2', title: 'Đóng tiền học phí cho con tháng 8', priority: 'high', status: 'open', rrule: 'FREQ=MONTHLY', dueOn: '2026-08-10' },
+    { id: 'task_3', title: 'Bảo dưỡng máy lạnh phòng khách Daikin', priority: 'normal', status: 'done', dueOn: '2026-08-15' },
+  ]);
+  const [assets, setAssets] = useState<Asset[]>([
+    { id: 'ast_1', name: 'Xe Honda SH 150i (29-X1 999.99)', category: 'Xe máy & Ô tô', status: 'Cần bảo trì', warrantyUntil: '2027-05-10' },
+    { id: 'ast_2', name: 'Máy lạnh Daikin Inverter 2HP', category: 'Thiết bị gia đình', status: 'Đang hoạt động', warrantyUntil: '2026-11-15' },
+    { id: 'ast_3', name: 'Tủ lạnh Samsung Side-by-Side', category: 'Thiết bị gia đình', status: 'Đang hoạt động', warrantyUntil: '2026-08-01' },
+  ]);
+  const [notes, setNotes] = useState<Note[]>([
+    { id: 'note_1', title: 'Mật khẩu Wifi & Mã khóa cửa nhà', content: 'Wifi: LifeHub_5G / Pass: 88889999 | Khóa cửa: 123456#', category: 'Gia đình' },
+    { id: 'note_2', title: 'Danh sách số điện thoại khẩn cấp', content: 'Cứu hỏa: 114 | Cấp cứu: 115 | Điện lực: 19001088', category: 'Khẩn cấp' },
+  ]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
 
   // Modals Visibility
@@ -479,7 +498,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-28 md:pb-6 space-y-6">
           {activeTab === 'dashboard' && (
             <DashboardTab
               dashboardData={dashboardData}
