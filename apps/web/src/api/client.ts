@@ -1,8 +1,13 @@
-const API_BASE =
-  typeof window !== 'undefined' &&
-  (window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.'))
-    ? ''
-    : 'https://lifehub-api.it-nguyenlanh.workers.dev';
+const getApiBase = () => {
+  if (typeof window === 'undefined') return 'https://lifehub-api.it-nguyenlanh.workers.dev';
+  const host = window.location.hostname;
+  if (host === 'localhost' || host.startsWith('192.168.')) {
+    return '';
+  }
+  return 'https://lifehub-api.it-nguyenlanh.workers.dev';
+};
+
+const API_BASE = getApiBase();
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;

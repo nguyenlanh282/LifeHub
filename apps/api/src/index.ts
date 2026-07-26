@@ -17,8 +17,21 @@ export interface Env {
 
 const app = new Hono<{ Bindings: Env }>();
 
-// Enable CORS for frontend PWA
-app.use('*', cors());
+// Enable CORS for custom domain lifehub.alita.vn & PWA Cloudflare Pages
+app.use(
+  '*',
+  cors({
+    origin: [
+      'https://lifehub.alita.vn',
+      'https://lifehub-b48.pages.dev',
+      'http://localhost:5173',
+      'http://localhost:4173',
+    ],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
 
 // Error Handler
 app.onError((err, c) => {
@@ -31,6 +44,7 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     app: 'LifeHub Serverless API',
+    customDomain: 'lifehub.alita.vn',
     timestamp: new Date().toISOString(),
   });
 });
@@ -48,13 +62,10 @@ app.route('/api/sync', syncRouter);
 export default {
   fetch: app.fetch,
 
-  // Cron Trigger for due-date reminder processing
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     console.log('Running daily reminder scanner cron job at:', event.scheduledTime);
-    // Queue job to process reminders
   },
 
-  // Queue Consumer for notification delivery
   async queue(batch: MessageBatch<any>, env: Env): Promise<void> {
     console.log(`Processing queue batch of ${batch.messages.length} messages`);
     for (const msg of batch.messages) {
