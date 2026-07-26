@@ -19,7 +19,7 @@ import { TasksTab } from './components/TasksTab';
 import { AssetsTab } from './components/AssetsTab';
 import { DailyTab } from './components/DailyTab';
 import { SettingsTab } from './components/SettingsTab';
-import { X, QrCode, Zap, Sparkles, User } from 'lucide-react';
+import { X, QrCode, Zap, Sparkles, User, ShieldCheck, Lock } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ModuleTab>('dashboard');
@@ -53,19 +53,11 @@ export default function App() {
   const [isSyncingBank, setIsSyncingBank] = useState(false);
   const [bankSyncMessage, setBankSyncMessage] = useState('');
 
-  // User Authentication State
+  // Strict User Authentication State (Defaults to NULL if not logged in)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem('lifehub_user');
-    return stored
-      ? JSON.parse(stored)
-      : {
-          id: 'usr_g_default',
-          name: 'Nguyễn Văn Lành (Google Auth)',
-          email: 'it.nguyenlanh@gmail.com',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-          provider: 'google',
-        };
+    return stored ? JSON.parse(stored) : null;
   });
 
   const [isInstalled, setIsInstalled] = useState<boolean>(() => {
@@ -106,8 +98,24 @@ export default function App() {
   const [generatedQrUrl, setGeneratedQrUrl] = useState('');
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const handleOAuthMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OAUTH_SUCCESS') {
+        const userObj = event.data.user;
+        setCurrentUser(userObj);
+        localStorage.setItem('lifehub_user', JSON.stringify(userObj));
+        setIsAuthModalOpen(false);
+      }
+    };
+    window.addEventListener('message', handleOAuthMessage);
+
+    if (currentUser) {
+      fetchData();
+    }
+
+    return () => {
+      window.removeEventListener('message', handleOAuthMessage);
+    };
+  }, [currentUser]);
 
   const fetchData = async () => {
     try {
@@ -319,9 +327,13 @@ export default function App() {
     setBankSyncMessage(`Đã gửi lời mời thành viên ${email}!`);
   };
 
+  // Google OAuth Social Sign-In Handler
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     if (provider === 'google') {
-      const callbackHost = 'https://lifehub-api.alita.vn/api/auth/google/callback';
+      const isCustomDomain = window.location.hostname.includes('alita.vn');
+      const callbackHost = isCustomDomain
+        ? 'https://lifehub-api.alita.vn/api/auth/google/callback'
+        : 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
       const redirectUri = encodeURIComponent(callbackHost);
       const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=consent`;
 
@@ -377,6 +389,60 @@ export default function App() {
     };
     reader.readAsDataURL(file);
   };
+
+  // --- AUTH GATEWAY: LOCK SCREEN IF NOT LOGGED IN ---
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-[#070a12] text-slate-100 flex items-center justify-center p-4 gradient-glow-indigo">
+        <div className="glass-panel w-full max-w-md p-8 rounded-3xl space-y-6 text-center shadow-2xl border border-indigo-500/30">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center mx-auto shadow-xl shadow-indigo-500/30 ring-4 ring-indigo-400/20">
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+              LifeHub <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase">PRO MAX</span>
+            </h1>
+            <p className="text-xs text-slate-400 font-medium mt-1">
+              Quản lý Thu Chi, Ví Ngân Hàng, Thiết Bị & Sinh Hoạt Gia Đình
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2 text-left">
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+              <Lock className="w-4 h-4" /> Yêu Cầu Đăng Nhập Bảo Mật
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+              Vui lòng xác thực tài khoản Google của bạn để mã hóa và đồng bộ dữ liệu ví ngân hàng cá nhân.
+            </p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <button
+              onClick={() => handleSocialLogin('google')}
+              className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 ring-2 ring-indigo-500/30"
+            >
+              <GoogleIcon className="w-5 h-5" />
+              <span>Đăng nhập bằng Google</span>
+            </button>
+
+            <button
+              onClick={() => handleSocialLogin('facebook')}
+              className="w-full py-3 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-3 active:scale-95"
+            >
+              <FacebookIcon className="w-5 h-5 fill-white" />
+              <span>Đăng nhập bằng Facebook</span>
+            </button>
+          </div>
+
+          <div className="pt-2 text-[10px] text-slate-500 flex items-center justify-center gap-1 font-semibold">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Bảo mật chuẩn mã hóa Cloudflare D1 & JWT</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#070a12] text-slate-100 selection:bg-indigo-500 selection:text-white gradient-glow-indigo">
@@ -486,7 +552,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* --- MODALS --- */}
+      {/* --- ALL MODALS --- */}
       {/* 1. VietQR Modal */}
       {isVietQRModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -812,35 +878,37 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* 8. Google OAuth & Social Auth Modal */}
-      {isAuthModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-sm p-6 rounded-2xl space-y-5 border border-indigo-500/30">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-indigo-400" />
-                Đăng Nhập Google OAuth Real
-              </h3>
-              <button onClick={() => setIsAuthModalOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-300 text-center font-medium">
-              Đăng nhập bằng tài khoản Google (`it.nguyenlanh@gmail.com`) để bảo mật dữ liệu.
-            </p>
-
-            <button
-              onClick={() => handleSocialLogin('google')}
-              className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm flex items-center justify-center gap-3 active:scale-95"
-            >
-              <User className="w-5 h-5 text-indigo-600" />
-              <span>Tiếp tục với Google OAuth</span>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+function GoogleIcon(props: any) {
+  return (
+    <svg className={props.className} viewBox="0 0 24 24">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+      />
+    </svg>
+  );
+}
+
+function FacebookIcon(props: any) {
+  return (
+    <svg className={props.className} viewBox="0 0 24 24">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
   );
 }
