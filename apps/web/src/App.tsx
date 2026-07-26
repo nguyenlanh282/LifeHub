@@ -321,10 +321,7 @@ export default function App() {
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     if (provider === 'google') {
-      const isCustomDomain = window.location.hostname.includes('alita.vn');
-      const callbackHost = isCustomDomain
-        ? 'https://lifehub.alita.vn/api/auth/google/callback'
-        : 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
+      const callbackHost = 'https://lifehub-api.alita.vn/api/auth/google/callback';
       const redirectUri = encodeURIComponent(callbackHost);
       const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=consent`;
 

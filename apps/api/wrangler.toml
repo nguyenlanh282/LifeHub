@@ -4,6 +4,10 @@ compatibility_date = "2024-05-01"
 workers_dev = true
 account_id = "d4a30462b305677d4a98c834d8e5f06c"
 
+routes = [
+  { pattern = "lifehub-api.alita.vn", custom_domain = true }
+]
+
 [vars]
 ENVIRONMENT = "development"
 GOOGLE_CLIENT_ID = "11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com"

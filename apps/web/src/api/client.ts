@@ -1,10 +1,10 @@
 const getApiBase = () => {
-  if (typeof window === 'undefined') return 'https://lifehub-api.it-nguyenlanh.workers.dev';
+  if (typeof window === 'undefined') return 'https://lifehub-api.alita.vn';
   const host = window.location.hostname;
   if (host === 'localhost' || host.startsWith('192.168.')) {
     return '';
   }
-  return 'https://lifehub-api.it-nguyenlanh.workers.dev';
+  return 'https://lifehub-api.alita.vn';
 };
 
 const API_BASE = getApiBase();

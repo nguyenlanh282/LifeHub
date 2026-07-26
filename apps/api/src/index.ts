@@ -17,13 +17,15 @@ export interface Env {
 
 const app = new Hono<{ Bindings: Env }>();
 
-// Enable CORS for custom domain lifehub.alita.vn & PWA Cloudflare Pages
+// Enable CORS for custom domain lifehub.alita.vn and API domain lifehub-api.alita.vn
 app.use(
   '*',
   cors({
     origin: [
       'https://lifehub.alita.vn',
+      'https://lifehub-api.alita.vn',
       'https://lifehub-b48.pages.dev',
+      'https://lifehub-api.it-nguyenlanh.workers.dev',
       'http://localhost:5173',
       'http://localhost:4173',
     ],
@@ -44,7 +46,7 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     app: 'LifeHub Serverless API',
-    customDomain: 'lifehub.alita.vn',
+    customDomain: 'lifehub-api.alita.vn',
     timestamp: new Date().toISOString(),
   });
 });
