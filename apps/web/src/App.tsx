@@ -53,9 +53,21 @@ export default function App() {
   const [isSyncingBank, setIsSyncingBank] = useState(false);
   const [bankSyncMessage, setBankSyncMessage] = useState('');
 
-  // Strict User Authentication State (Defaults to NULL if not logged in)
+  // Strict User Authentication State (Reads URL param or localStorage)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const loginUserParam = params.get('login_user');
+    if (loginUserParam) {
+      try {
+        const userObj = JSON.parse(decodeURIComponent(loginUserParam));
+        localStorage.setItem('lifehub_user', JSON.stringify(userObj));
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return userObj;
+      } catch (e) {
+        console.error('Failed to parse login_user param:', e);
+      }
+    }
     const stored = localStorage.getItem('lifehub_user');
     return stored ? JSON.parse(stored) : null;
   });

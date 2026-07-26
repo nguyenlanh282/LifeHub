@@ -205,8 +205,8 @@ authRouter.get('/google/callback', async (c) => {
               }, '*');
               window.close();
             } else {
-              localStorage.setItem('lifehub_user', JSON.stringify(userObj));
-              window.location.href = 'https://lifehub.alita.vn';
+              const userStr = encodeURIComponent(JSON.stringify(userObj));
+              window.location.href = 'https://lifehub.alita.vn/?login_user=' + userStr;
             }
           </script>
         </body>
