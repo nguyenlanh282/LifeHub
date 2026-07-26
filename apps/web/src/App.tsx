@@ -28,7 +28,7 @@ export default function App() {
   // Core State
   const [workspaces, setWorkspaces] = useState<Workspace[]>([
     { id: 'ws_personal_01', name: '🏠 Ví Cá Nhân', type: 'personal', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
-    { id: 'ws_family_02', name: '👨‍👩‍👧‍👦 Ví Gia Đình', type: 'team', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
+    { id: 'ws_family_02', name: '👨‍gsub Ví Gia Đình', type: 'team', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
     { id: 'ws_company_03', name: '💼 Bảo Trì Công Ty / Sufruit', type: 'team', baseCurrency: 'VND', timezone: 'Asia/Ho_Chi_Minh' },
   ]);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(workspaces[0]);
@@ -327,9 +327,9 @@ export default function App() {
     setBankSyncMessage(`Đã gửi lời mời thành viên ${email}!`);
   };
 
-  // Official Google Real OAuth Sign-In (Direct Redirect & Account Selection)
-  const handleRealGoogleOAuth = (mode: 'redirect' | 'popup') => {
-    const callbackHost = 'https://lifehub.alita.vn/api/auth/google/callback';
+  // Official Google Real OAuth Sign-In
+  const handleRealGoogleOAuth = (mode: 'redirect' | 'popup', targetHost?: string) => {
+    const callbackHost = targetHost || 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
     const redirectUri = encodeURIComponent(callbackHost);
     const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=select_account`;
 
@@ -345,7 +345,6 @@ export default function App() {
     const popup = window.open(googleUrl, 'GoogleAuthWindow', `width=${width},height=${height},left=${left},top=${top}`);
 
     if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      // Fallback to full page redirect if popup is blocked
       window.location.href = googleUrl;
     }
   };
@@ -399,27 +398,27 @@ export default function App() {
               <Lock className="w-4 h-4" /> Yêu Cầu Đăng Nhập Tài Khoản Google Chính Chủ
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-              Vui lòng bấm chọn tài khoản Google của bạn trên hệ thống Google OAuth để mã hóa và đồng bộ dữ liệu ví cá nhân.
+              Vui lòng chọn 1 trong 2 luồng xác thực Google bên dưới để đăng nhập chính chủ:
             </p>
           </div>
 
           <div className="space-y-3 pt-2">
-            {/* Direct Google OAuth Login Button (Full Page Redirect & Account Selector) */}
+            {/* Standard Workers Domain Google OAuth (Matches existing Google Console settings) */}
             <button
-              onClick={() => handleRealGoogleOAuth('redirect')}
+              onClick={() => handleRealGoogleOAuth('redirect', 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback')}
               className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 ring-2 ring-indigo-500/30"
             >
               <GoogleIcon className="w-5 h-5" />
-              <span>Đăng nhập với Google chính chủ</span>
+              <span>Đăng nhập với Google (Workers)</span>
             </button>
 
-            {/* Popup Google OAuth Login Button */}
+            {/* Custom Domain Google OAuth (Requires adding URI to Google Console) */}
             <button
-              onClick={() => handleRealGoogleOAuth('popup')}
+              onClick={() => handleRealGoogleOAuth('redirect', 'https://lifehub.alita.vn/api/auth/google/callback')}
               className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center justify-center gap-2 active:scale-95"
             >
               <GoogleIcon className="w-4 h-4" />
-              <span>Đăng nhập bằng Cửa Sổ Bật Lên (Popup)</span>
+              <span>Đăng nhập qua Tên Miền lifehub.alita.vn</span>
             </button>
           </div>
 
