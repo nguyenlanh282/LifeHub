@@ -35,67 +35,134 @@ import {
   CheckCircle2,
   LogOut,
   UserCheck,
-  User
+  User,
+  Trash2,
+  Edit3,
+  Camera,
+  UploadCloud,
+  Building2,
+  CheckSquare2,
+  RefreshCw,
+  PlusCircle,
+  FileImage,
+  ArrowDownRight
 } from 'lucide-react';
 
 type ModuleTab = 'dashboard' | 'finance' | 'tasks' | 'assets' | 'daily';
 
-const API_BASE = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.'))
-  ? ''
-  : 'https://lifehub-api.it-nguyenlanh.workers.dev';
+const API_BASE =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.'))
+    ? ''
+    : 'https://lifehub-api.it-nguyenlanh.workers.dev';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ModuleTab>('dashboard');
   const [isOnline] = useState<boolean>(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
+
+  // Core Data Lists
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [wallets, setWallets] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [habits, setHabits] = useState<any[]>([]);
+
+  // Modals Visibility State
+  const [isAddTxnModalOpen, setIsAddTxnModalOpen] = useState(false);
+  const [isEditTxnModalOpen, setIsEditTxnModalOpen] = useState(false);
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
+  const [isAddAssetModalOpen, setIsAddAssetModalOpen] = useState(false);
+  const [isEditAssetModalOpen, setIsEditAssetModalOpen] = useState(false);
+  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  const [isAddWalletModalOpen, setIsAddWalletModalOpen] = useState(false);
+  const [isVietQRModalOpen, setIsVietQRModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  // Current User State (Loaded from localStorage)
+  // Selected item state for Edit/Delete/QR
+  const [selectedTxn, setSelectedTxn] = useState<any>(null);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedAsset, setSelectedAsset] = useState<any>(null);
+
+  // Current User State
   const [currentUser, setCurrentUser] = useState<any>(() => {
     if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem('lifehub_user');
-    return stored ? JSON.parse(stored) : {
-      id: 'usr_g_default',
-      name: 'Lành Guru',
-      email: 'lanh.guru@gmail.com',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-      provider: 'google',
-    };
+    return stored
+      ? JSON.parse(stored)
+      : {
+          id: 'usr_g_default',
+          name: 'Lành Guru',
+          email: 'lanh.guru@gmail.com',
+          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+          provider: 'google',
+        };
   });
 
-  // Detect if PWA is running in standalone mode
+  // PWA Standalone Detection & Banner Dismiss
   const [isInstalled, setIsInstalled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    const isStandalone =
+    return (
       window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as any).standalone === true ||
-      document.referrer.startsWith('android-app://');
-    const storedValue = localStorage.getItem('pwa_installed') === 'true';
-    return isStandalone || storedValue;
+      document.referrer.startsWith('android-app://') ||
+      localStorage.getItem('pwa_installed') === 'true'
+    );
   });
-
-  // State to manually dismiss PWA banner forever
   const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('pwa_banner_dismissed') === 'true';
   });
 
-  // Task Filter
+  // Filter States
   const [taskFilter, setTaskFilter] = useState<'all' | 'recurring' | 'due' | 'done'>('all');
 
-  // Quick Add Form State
-  const [newTxnNote, setNewTxnNote] = useState('');
-  const [newTxnAmount, setNewTxnAmount] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('cat_food');
-  const [selectedWalletId, setSelectedWalletId] = useState('');
+  // Form Field States
+  // 1. Transaction Form
+  const [txnType, setTxnType] = useState<'expense' | 'income'>('expense');
+  const [txnAmount, setTxnAmount] = useState('');
+  const [txnNote, setTxnNote] = useState('');
+  const [txnCategory, setTxnCategory] = useState('cat_food');
+  const [txnWalletId, setTxnWalletId] = useState('');
+  const [txnReceiptUrl, setTxnReceiptUrl] = useState('');
 
-  // Listen to PWA install prompt & OAuth PostMessage events
+  // 2. Task Form
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDesc, setTaskDesc] = useState('');
+  const [taskPriority, setTaskPriority] = useState<'normal' | 'high'>('normal');
+  const [taskRrule, setTaskRrule] = useState('');
+  const [taskDueOn, setTaskDueOn] = useState(new Date().toISOString().split('T')[0]);
+
+  // 3. Asset Form
+  const [assetName, setAssetName] = useState('');
+  const [assetCategory, setAssetCategory] = useState('Xe máy & Ô tô');
+  const [assetLocation, setAssetLocation] = useState('Nhà riêng');
+  const [assetWarranty, setAssetWarranty] = useState('2027-12-31');
+
+  // 4. Note Form
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteContent, setNoteContent] = useState('');
+  const [noteCategory, setNoteCategory] = useState('Ghi chú chung');
+
+  // 5. Wallet Form
+  const [walletName, setWalletName] = useState('');
+  const [walletType, setWalletType] = useState('bank');
+  const [walletBalance, setWalletBalance] = useState('');
+
+  // 6. VietQR Form
+  const [qrBank, setQrBank] = useState('MB');
+  const [qrAccountNo, setQrAccountNo] = useState('0987654321');
+  const [qrAccountName, setQrAccountName] = useState('NGUYEN VAN LANH');
+  const [qrAmount, setQrAmount] = useState('150000');
+  const [qrNote, setQrNote] = useState('LifeHub Chuyen Khoan');
+  const [generatedQrUrl, setGeneratedQrUrl] = useState('');
+
+  // Initial Fetch & Event Listeners
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -130,21 +197,253 @@ export default function App() {
     };
   }, []);
 
+  const fetchData = () => {
+    fetch(`${API_BASE}/api/daily/dashboard`)
+      .then((res) => res.json())
+      .then((data) => setDashboardData(data))
+      .catch(() => {});
+
+    fetch(`${API_BASE}/api/finance/transactions`)
+      .then((res) => res.json())
+      .then((data) => setTransactions(data.transactions || []))
+      .catch(() => {});
+
+    fetch(`${API_BASE}/api/tasks`)
+      .then((res) => res.json())
+      .then((data) => setTasks(data.tasks || []))
+      .catch(() => {});
+
+    fetch(`${API_BASE}/api/finance/wallets`)
+      .then((res) => res.json())
+      .then((data) => {
+        setWallets(data.wallets || []);
+        if (data.wallets?.length > 0 && !txnWalletId) setTxnWalletId(data.wallets[0].id);
+      })
+      .catch(() => {});
+
+    fetch(`${API_BASE}/api/assets`)
+      .then((res) => res.json())
+      .then((data) => setAssets(data.assets || []))
+      .catch(() => {});
+
+    fetch(`${API_BASE}/api/daily/notes`)
+      .then((res) => res.json())
+      .then((data) => setNotes(data.notes || []))
+      .catch(() => {});
+
+    fetch(`${API_BASE}/api/daily/habits`)
+      .then((res) => res.json())
+      .then((data) => setHabits(data.habits || []))
+      .catch(() => {});
+  };
+
+  // --- CRUD HANDLERS ---
+
+  // 1. Transaction CRUD
+  const handleCreateTxn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!txnAmount) return;
+
+    const payload = {
+      type: txnType,
+      amountMinor: parseInt(txnAmount, 10),
+      note: txnNote || (txnType === 'expense' ? 'Khoản chi tiêu' : 'Khoản thu nhập'),
+      categoryId: txnCategory,
+      occurredOn: new Date().toISOString().split('T')[0],
+      walletId: txnWalletId || wallets[0]?.id || 'wal_cash',
+      receiptUrl: txnReceiptUrl || null,
+    };
+
+    await fetch(`${API_BASE}/api/finance/transactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+
+    fetchData();
+    setTxnAmount('');
+    setTxnNote('');
+    setTxnReceiptUrl('');
+    setIsAddTxnModalOpen(false);
+  };
+
+  const handleDeleteTxn = async (id: string) => {
+    setTransactions((prev) => prev.filter((t) => t.id !== id));
+    await fetch(`${API_BASE}/api/finance/transactions/${id}`, { method: 'DELETE' }).catch(() => {});
+    fetchData();
+  };
+
+  // 2. VietQR Generator Handler
+  const handleGenerateVietQR = () => {
+    const addInfo = encodeURIComponent(qrNote || 'LifeHub Chuyen Khoan');
+    const url = `https://img.vietqr.io/image/${qrBank}-${qrAccountNo}-compact2.png?amount=${qrAmount}&addInfo=${addInfo}&accountName=${encodeURIComponent(
+      qrAccountName
+    )}`;
+    setGeneratedQrUrl(url);
+    setIsVietQRModalOpen(true);
+  };
+
+  // 3. Receipt Upload & Parse Handler
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      setTxnReceiptUrl(base64);
+
+      // Call API upload-receipt
+      const res = await fetch(`${API_BASE}/api/finance/upload-receipt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, filename: file.name }),
+      }).catch(() => null);
+
+      if (res) {
+        const data = await res.json();
+        if (data.parsedData) {
+          setTxnAmount(String(data.parsedData.amountMinor));
+          setTxnNote(data.parsedData.note);
+        }
+      }
+      setIsReceiptModalOpen(false);
+      setIsAddTxnModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 4. Wallet CRUD
+  const handleCreateWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!walletName) return;
+
+    const newW = {
+      name: walletName,
+      type: walletType,
+      openingBalanceMinor: parseInt(walletBalance, 10) || 0,
+    };
+
+    await fetch(`${API_BASE}/api/finance/wallets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newW),
+    }).catch(() => {});
+
+    fetchData();
+    setWalletName('');
+    setWalletBalance('');
+    setIsAddWalletModalOpen(false);
+  };
+
+  // 5. Tasks CRUD
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskTitle) return;
+
+    const newTaskPayload = {
+      title: taskTitle,
+      description: taskDesc,
+      priority: taskPriority,
+      rrule: taskRrule || null,
+      dueOn: taskDueOn,
+    };
+
+    await fetch(`${API_BASE}/api/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTaskPayload),
+    }).catch(() => {});
+
+    fetchData();
+    setTaskTitle('');
+    setTaskDesc('');
+    setTaskRrule('');
+    setIsAddTaskModalOpen(false);
+  };
+
+  const handleToggleTask = async (taskId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'done' ? 'open' : 'done';
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t)));
+
+    await fetch(`${API_BASE}/api/tasks/${taskId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus }),
+    }).catch(() => {});
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    await fetch(`${API_BASE}/api/tasks/${id}`, { method: 'DELETE' }).catch(() => {});
+  };
+
+  // 6. Assets CRUD
+  const handleCreateAsset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assetName) return;
+
+    const newAst = {
+      name: assetName,
+      category: assetCategory,
+      location: assetLocation,
+      status: 'available',
+      warrantyUntil: assetWarranty,
+    };
+
+    await fetch(`${API_BASE}/api/assets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newAst),
+    }).catch(() => {});
+
+    fetchData();
+    setAssetName('');
+    setIsAddAssetModalOpen(false);
+  };
+
+  const handleDeleteAsset = async (id: string) => {
+    setAssets((prev) => prev.filter((a) => a.id !== id));
+    await fetch(`${API_BASE}/api/assets/${id}`, { method: 'DELETE' }).catch(() => {});
+  };
+
+  // 7. Notes CRUD
+  const handleCreateNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noteTitle) return;
+
+    const newN = { title: noteTitle, content: noteContent, category: noteCategory };
+    await fetch(`${API_BASE}/api/daily/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newN),
+    }).catch(() => {});
+
+    fetchData();
+    setNoteTitle('');
+    setNoteContent('');
+    setIsAddNoteModalOpen(false);
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    await fetch(`${API_BASE}/api/daily/notes/${id}`, { method: 'DELETE' }).catch(() => {});
+  };
+
+  // Social Auth Handlers
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     try {
-      const mockName = provider === 'google' ? 'Đăng nhập Google' : 'Đăng nhập Facebook';
-      const mockEmail = provider === 'google' ? 'lanh.google@gmail.com' : 'lanh.facebook@gmail.com';
-
       const res = await fetch(`${API_BASE}/api/auth/social-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider,
-          name: mockName,
-          email: mockEmail,
-          avatarUrl: provider === 'google'
-            ? 'https://lh3.googleusercontent.com/a/default-user'
-            : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+          name: provider === 'google' ? 'Lành Guru (Google)' : 'Lành Guru (Facebook)',
+          email: provider === 'google' ? 'lanh.google@gmail.com' : 'lanh.facebook@gmail.com',
+          avatarUrl:
+            provider === 'google'
+              ? 'https://lh3.googleusercontent.com/a/default-user'
+              : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
         }),
       });
 
@@ -182,70 +481,6 @@ export default function App() {
   const handleDismissBanner = () => {
     setIsBannerDismissed(true);
     localStorage.setItem('pwa_banner_dismissed', 'true');
-  };
-
-  const fetchData = () => {
-    fetch(`${API_BASE}/api/daily/dashboard`)
-      .then((res) => res.json())
-      .then((data) => setDashboardData(data))
-      .catch(() => {});
-
-    fetch(`${API_BASE}/api/tasks`)
-      .then((res) => res.json())
-      .then((data) => setTasks(data.tasks || []))
-      .catch(() => {});
-
-    fetch(`${API_BASE}/api/finance/wallets`)
-      .then((res) => res.json())
-      .then((data) => {
-        setWallets(data.wallets || []);
-        if (data.wallets?.length > 0) setSelectedWalletId(data.wallets[0].id);
-      })
-      .catch(() => {});
-
-    fetch(`${API_BASE}/api/assets`)
-      .then((res) => res.json())
-      .then((data) => setAssets(data.assets || []))
-      .catch(() => {});
-  };
-
-  const handleToggleTask = async (taskId: string, currentStatus: string) => {
-    const nextStatus = currentStatus === 'done' ? 'open' : 'done';
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
-    );
-
-    await fetch(`${API_BASE}/api/tasks/${taskId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: nextStatus }),
-    }).catch(() => {});
-  };
-
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTxnAmount) return;
-
-    const amountMinor = parseInt(newTxnAmount, 10);
-    const newTxn = {
-      amountMinor,
-      type: 'expense',
-      note: newTxnNote || 'Chi tiêu nhanh',
-      categoryId: selectedCategory,
-      occurredOn: new Date().toISOString().split('T')[0],
-      walletId: selectedWalletId || wallets[0]?.id || 'wal_cash',
-    };
-
-    await fetch(`${API_BASE}/api/finance/transactions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newTxn),
-    }).catch(() => {});
-
-    fetchData();
-    setNewTxnNote('');
-    setNewTxnAmount('');
-    setIsAddModalOpen(false);
   };
 
   const filteredTasks = tasks.filter((t) => {
@@ -343,58 +578,39 @@ export default function App() {
           </button>
         </nav>
 
-        {/* User Card & Logout / Login Button */}
-        <div className="p-4 border-t border-slate-800/60 space-y-2.5">
-          {currentUser ? (
-            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                <img
-                  src={currentUser.avatarUrl || 'https://lh3.googleusercontent.com/a/default-user'}
-                  alt={currentUser.name}
-                  className="w-8 h-8 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0"
-                />
-                <div className="truncate">
-                  <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
-                  <p className="text-[10px] text-slate-400 capitalize truncate">
-                    {currentUser.provider === 'google' ? '🟢 Google' : '🔵 Facebook'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-all shrink-0"
-                title="Đăng xuất"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition-all flex items-center justify-center gap-2"
-            >
-              <User className="w-4 h-4" />
-              <span>Đăng Nhập Social</span>
-            </button>
-          )}
-
-          {!isInstalled && !isBannerDismissed && (
-            <button
-              onClick={handleInstallPWA}
-              className="w-full py-2 px-3 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Cài Đặt App PWA</span>
-            </button>
-          )}
+        {/* User Card & Action Buttons */}
+        <div className="p-4 border-t border-slate-800/60 space-y-2">
+          <button
+            onClick={handleGenerateVietQR}
+            className="w-full py-2 px-3 rounded-xl bg-slate-900 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+          >
+            <QrCode className="w-4 h-4 text-indigo-400" />
+            <span>Tạo Mã VietQR Ngân Hàng</span>
+          </button>
 
           <button
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => setIsAddTxnModalOpen(true)}
             className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 hover:opacity-95 transition-all flex items-center justify-center gap-2 active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Ghi Khoản Chi (+ Touch)</span>
           </button>
+
+          {currentUser && (
+            <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between mt-2">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <img
+                  src={currentUser.avatarUrl || 'https://lh3.googleusercontent.com/a/default-user'}
+                  alt={currentUser.name}
+                  className="w-7 h-7 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0"
+                />
+                <span className="text-xs font-bold text-white truncate">{currentUser.name}</span>
+              </div>
+              <button onClick={handleLogout} className="text-slate-400 hover:text-rose-400 p-1" title="Đăng xuất">
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -408,17 +624,25 @@ export default function App() {
             </div>
             <div>
               <h2 className="text-base md:text-lg font-extrabold text-white tracking-tight capitalize">
-                {activeTab === 'dashboard' && 'Dashboard Center'}
-                {activeTab === 'finance' && 'Thu Chi & Quản Lý Ngân Sách'}
-                {activeTab === 'tasks' && 'Lịch Công Việc & Tái Diễn'}
-                {activeTab === 'assets' && 'Thiết Bị & Lịch Bảo Trì Xe'}
-                {activeTab === 'daily' && 'Nhật Ký & Thói Quen Hằng Ngày'}
+                {activeTab === 'dashboard' && 'Dashboard Overview'}
+                {activeTab === 'finance' && 'Thu Chi, Ngân Hàng & VietQR'}
+                {activeTab === 'tasks' && 'Lịch Công Việc & Tái Diễn (RRULE)'}
+                {activeTab === 'assets' && 'Quản Lý Thiết Bị & Bảo Trì'}
+                {activeTab === 'daily' && 'Nhật Ký Sinh Hoạt & Ghi Chú'}
               </h2>
             </div>
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">
-            {/* Social Auth Login Button / User Profile Header Badge */}
+            {/* Quick Action VietQR Button */}
+            <button
+              onClick={handleGenerateVietQR}
+              className="px-2.5 py-1.5 rounded-xl bg-indigo-500/15 text-indigo-300 font-bold text-xs flex items-center gap-1.5 border border-indigo-500/30 active:scale-95"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">VietQR</span>
+            </button>
+
             {currentUser ? (
               <div className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-xl bg-slate-900 border border-slate-800">
                 <img
@@ -427,9 +651,6 @@ export default function App() {
                   className="w-6 h-6 rounded-full object-cover ring-2 ring-indigo-500/30"
                 />
                 <span className="text-xs font-extrabold text-slate-200 hidden sm:inline">{currentUser.name}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold uppercase">
-                  {currentUser.provider || 'OAuth'}
-                </span>
               </div>
             ) : (
               <button
@@ -441,365 +662,182 @@ export default function App() {
               </button>
             )}
 
-            {!isInstalled && !isBannerDismissed ? (
+            {!isInstalled && !isBannerDismissed && (
               <button
                 onClick={handleInstallPWA}
                 className="px-2.5 py-1.5 rounded-xl bg-slate-800 text-indigo-300 font-bold text-xs flex items-center gap-1.5 border border-slate-700 active:scale-95 transition-all"
-                title="Cài đặt PWA lên màn hình chính"
               >
                 <Smartphone className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Cài PWA</span>
               </button>
-            ) : (
-              <span className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5" /> App Ready
-              </span>
             )}
-
-            <button className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 relative transition-all active:scale-95">
-              <Bell className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            </button>
           </div>
         </header>
 
         {/* Scrollable Main Workspace Body */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-          {/* PWA Banner Option on Dashboard with Dismiss X Button */}
-          {activeTab === 'dashboard' && !isInstalled && !isBannerDismissed && (
-            <div className="glass-panel p-4 rounded-2xl bg-gradient-to-r from-indigo-900/40 via-purple-900/30 to-slate-900/60 border border-indigo-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-indigo-500/10 relative">
-              <button
-                onClick={handleDismissBanner}
-                className="absolute top-3 right-3 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800/50"
-                title="Tắt thông báo này"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="flex items-center gap-3 pr-6 sm:pr-0">
-                <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
-                  <Smartphone className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-sm text-white">Cài Đặt LifeHub Lên Màn Hình Chính</h4>
-                  <p className="text-xs text-slate-300 mt-0.5">Trải nghiệm ứng dụng full màn hình, nhận nhắc nhở và chạy mượt offline.</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                <button
-                  onClick={handleInstallPWA}
-                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs shadow-md shadow-indigo-500/30 hover:opacity-95 transition-all flex items-center justify-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Hướng Dẫn / Cài Đặt</span>
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* TAB 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              {/* Horizontal Scroll Stats Carousel on Mobile */}
-              <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-                {/* Stat Card 1 */}
-                <div className="min-w-[270px] md:min-w-0 flex-1 glass-panel glass-panel-interactive p-4 md:p-5 rounded-2xl relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Chi Tiêu Tháng Này</span>
-                    <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
-                      <TrendingDown className="w-4 h-4" />
-                    </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="glass-panel p-5 rounded-2xl">
+                  <span className="text-[11px] font-extrabold uppercase text-slate-400">Chi Tiêu Tháng Này</span>
+                  <div className="text-2xl font-black text-white mt-2">
+                    {(dashboardData?.summary?.monthlyExpensesMinor || 4250000).toLocaleString('vi-VN')} ₫
                   </div>
-                  <div className="mt-3">
-                    <div className="text-2xl font-black text-white tracking-tight">
-                      {(dashboardData?.summary?.monthlyExpensesMinor || 4250000).toLocaleString('vi-VN')} ₫
-                    </div>
-                    <div className="text-xs text-slate-400 mt-1">
-                      Hôm nay: <strong className="text-indigo-300 font-bold">{(dashboardData?.summary?.todayExpensesMinor || 150000).toLocaleString('vi-VN')} ₫</strong>
-                    </div>
-                  </div>
-                  <div className="mt-3.5 pt-2.5 border-t border-slate-800/60">
-                    <div className="flex justify-between text-[11px] text-slate-400 mb-1 font-medium">
-                      <span>Ngân sách 10.000.000 ₫</span>
-                      <span className="font-bold text-indigo-300">42.5%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full" style={{ width: '42.5%' }}></div>
-                    </div>
-                  </div>
+                  <div className="text-xs text-indigo-300 font-bold mt-1">Hạn mức: 10.000.000 ₫</div>
                 </div>
 
-                {/* Stat Card 2 */}
-                <div className="min-w-[270px] md:min-w-0 flex-1 glass-panel glass-panel-interactive p-4 md:p-5 rounded-2xl relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Việc Cần Làm Today</span>
-                    <div className="p-2 rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/20">
-                      <CheckSquare className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="text-2xl font-black text-white tracking-tight">
-                      {dashboardData?.summary?.tasksDueTodayCount || tasks.length} Việc
-                    </div>
-                    <div className="text-xs text-rose-400 mt-1 flex items-center gap-1 font-bold">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{dashboardData?.summary?.overdueTasksCount || 1} việc quá hạn</span>
-                    </div>
-                  </div>
-                  <div
-                    onClick={() => setActiveTab('tasks')}
-                    className="mt-3.5 pt-2.5 border-t border-slate-800/60 text-xs text-indigo-400 font-bold flex items-center justify-between cursor-pointer"
-                  >
-                    <span>Xem danh sách việc</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </div>
+                <div className="glass-panel p-5 rounded-2xl">
+                  <span className="text-[11px] font-extrabold uppercase text-slate-400">Việc Cần Làm</span>
+                  <div className="text-2xl font-black text-purple-400 mt-2">{tasks.length} Việc</div>
+                  <div className="text-xs text-rose-400 font-bold mt-1">1 việc quá hạn</div>
                 </div>
 
-                {/* Stat Card 3 */}
-                <div className="min-w-[270px] md:min-w-0 flex-1 glass-panel glass-panel-interactive p-4 md:p-5 rounded-2xl relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Sắp Tới Hạn (14 Ngày)</span>
-                    <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="text-2xl font-black text-white tracking-tight">
-                      {dashboardData?.summary?.upcomingRemindersCount || 4} Mục
-                    </div>
-                    <div className="text-xs text-slate-400 mt-1 font-medium">Bảo trì & Hóa đơn định kỳ</div>
-                  </div>
-                  <div
-                    onClick={() => setActiveTab('assets')}
-                    className="mt-3.5 pt-2.5 border-t border-slate-800/60 text-xs text-amber-400 font-bold flex items-center justify-between cursor-pointer"
-                  >
-                    <span>Xem lịch bảo trì</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </div>
+                <div className="glass-panel p-5 rounded-2xl">
+                  <span className="text-[11px] font-extrabold uppercase text-slate-400">Lịch Bảo Trì Xe</span>
+                  <div className="text-2xl font-black text-amber-400 mt-2">{assets.length} Thiết bị</div>
+                  <div className="text-xs text-amber-300 font-bold mt-1">Hạn thay nhớt 05/08</div>
                 </div>
 
-                {/* Stat Card 4 */}
-                <div className="min-w-[270px] md:min-w-0 flex-1 glass-panel glass-panel-interactive p-4 md:p-5 rounded-2xl relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Trạng Thái Hệ Thống</span>
-                    <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                      <ShieldCheck className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="text-2xl font-black text-emerald-400 tracking-tight">An Toàn</div>
-                    <div className="text-xs text-slate-400 mt-1 font-medium">Không vượt hạn mức</div>
-                  </div>
-                  <div className="mt-3.5 pt-2.5 border-t border-slate-800/60 text-xs text-slate-400 flex items-center justify-between font-medium">
-                    <span>Tồn kho vật tư: Đủ</span>
-                  </div>
+                <div className="glass-panel p-5 rounded-2xl">
+                  <span className="text-[11px] font-extrabold uppercase text-slate-400">Ví Ngân Hàng</span>
+                  <div className="text-2xl font-black text-emerald-400 mt-2">{wallets.length} Ví Active</div>
+                  <div className="text-xs text-slate-400 font-bold mt-1">MB, VCB, Tiền mặt</div>
                 </div>
               </div>
 
-              {/* Main Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                  <div className="glass-panel p-4 md:p-6 rounded-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                      <h3 className="font-extrabold text-white flex items-center gap-2 text-sm md:text-base">
-                        <CheckSquare className="w-4 h-4 text-indigo-400" />
-                        Danh Sách Việc Tới Hạn (Cloudflare D1 Live)
-                      </h3>
-                      <button
-                        onClick={() => setActiveTab('tasks')}
-                        className="text-xs font-bold text-indigo-400 hover:underline"
-                      >
-                        Quản lý →
-                      </button>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className={`flex items-start md:items-center justify-between p-3.5 rounded-xl bg-slate-900/60 border transition-all ${
-                            task.status === 'done' ? 'border-slate-800/30 opacity-50' : 'border-slate-800/80 hover:border-indigo-500/40'
+              {/* Tasks Preview */}
+              <div className="glass-panel p-6 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h3 className="font-extrabold text-white text-base">Công Việc Cần Làm</h3>
+                  <button onClick={() => setIsAddTaskModalOpen(true)} className="text-xs font-bold text-indigo-400 hover:underline">
+                    + Thêm Việc Mới
+                  </button>
+                </div>
+                <div className="space-y-2.5">
+                  {tasks.map((t) => (
+                    <div key={t.id} className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleToggleTask(t.id, t.status)}
+                          className={`w-5 h-5 rounded border flex items-center justify-center ${
+                            t.status === 'done' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-700'
                           }`}
                         >
-                          <div className="flex items-start md:items-center gap-3">
-                            <button
-                              onClick={() => handleToggleTask(task.id, task.status)}
-                              className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all mt-0.5 md:mt-0 active:scale-90 ${
-                                task.status === 'done'
-                                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-500 text-white shadow-sm'
-                                  : 'border-slate-700 bg-slate-950 text-transparent hover:border-indigo-500'
-                              }`}
-                            >
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            </button>
-                            <div>
-                              <p className={`font-bold text-sm ${task.status === 'done' ? 'line-through text-slate-400' : 'text-slate-100'}`}>
-                                {task.title}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-2 mt-1">
-                                {task.rrule && (
-                                  <span className="px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">
-                                    Lặp: {task.rrule}
-                                  </span>
-                                )}
-                                <span className="text-[11px] text-slate-400 font-medium">Hạn: {task.dueOn || 'Hôm nay'}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <span
-                            className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md shrink-0 ml-2 ${
-                              task.priority === 'high'
-                                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 pro-max-badge'
-                                : 'bg-slate-800 text-slate-400'
-                            }`}
-                          >
-                            {task.priority || 'normal'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Budget Ring */}
-                  <div className="glass-panel p-5 rounded-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                      <h3 className="font-extrabold text-white text-sm flex items-center gap-2">
-                        <PieIcon className="w-4 h-4 text-purple-400" />
-                        Phân Bổ Ngân Sách
-                      </h3>
-                      <span className="text-[11px] font-bold text-indigo-400">Tháng 7</span>
-                    </div>
-
-                    <div className="flex items-center justify-around py-2">
-                      <div className="relative w-28 h-28 flex items-center justify-center">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                          <path
-                            className="text-slate-800"
-                            strokeWidth="3.8"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <path
-                            className="text-indigo-500"
-                            strokeDasharray="45, 100"
-                            strokeWidth="3.8"
-                            strokeLinecap="round"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <path
-                            className="text-purple-500"
-                            strokeDasharray="30, 100"
-                            strokeDashoffset="-45"
-                            strokeWidth="3.8"
-                            strokeLinecap="round"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                        </svg>
-                        <div className="absolute text-center">
-                          <span className="text-xs font-black text-white">42.5%</span>
-                          <p className="text-[9px] text-slate-400 font-semibold">ĐÃ DÙNG</p>
-                        </div>
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <span className={`font-bold text-sm ${t.status === 'done' ? 'line-through text-slate-500' : 'text-white'}`}>
+                          {t.title}
+                        </span>
                       </div>
-
-                      <div className="space-y-2 text-xs font-semibold">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-                          <span className="text-slate-300">Ăn uống (45%)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-                          <span className="text-slate-300">Hóa đơn (30%)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
-                          <span className="text-slate-300">Khác (25%)</span>
-                        </div>
-                      </div>
+                      <button onClick={() => handleDeleteTask(t.id)} className="text-slate-500 hover:text-rose-400 p-1">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                  </div>
-
-                  {/* Wallets */}
-                  <div className="glass-panel p-5 rounded-2xl space-y-4">
-                    <h3 className="font-extrabold text-white text-sm flex items-center gap-2 border-b border-slate-800/60 pb-3">
-                      <Wallet className="w-4 h-4 text-indigo-400" />
-                      Số Dư Ví Ledger
-                    </h3>
-
-                    <div className="space-y-3">
-                      {wallets.map((wallet) => (
-                        <div key={wallet.id} className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between">
-                          <div>
-                            <p className="text-xs font-semibold text-slate-400">{wallet.name}</p>
-                            <p className="text-base font-black text-white mt-0.5">
-                              {(wallet.balanceMinor || wallet.openingBalanceMinor || 0).toLocaleString('vi-VN')} ₫
-                            </p>
-                          </div>
-                          <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
-                            {wallet.type}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: FINANCE */}
+          {/* TAB 2: FINANCE & TRANSACTIONS & VIETQR */}
           {activeTab === 'finance' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="glass-panel p-5 rounded-2xl border-l-4 border-l-indigo-500">
-                  <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Tổng Số Dư Ví</span>
-                  <div className="text-2xl font-black text-white mt-1">17.900.000 ₫</div>
-                  <p className="text-xs text-slate-400 mt-1 font-medium">2 Ví đang hoạt động</p>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-extrabold text-white">Quản Lý Giao Dịch, Ngân Hàng & VietQR</h3>
+                  <p className="text-xs text-slate-400">Ghi thu chi, tải ảnh hóa đơn chuyển khoản và tạo mã VietQR thanh toán.</p>
                 </div>
-                <div className="glass-panel p-5 rounded-2xl border-l-4 border-l-emerald-500">
-                  <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Thu Nhập Tháng 7</span>
-                  <div className="text-2xl font-black text-emerald-400 mt-1">+25.000.000 ₫</div>
-                  <p className="text-xs text-slate-400 mt-1 font-medium">Lương & Thu nhập phụ</p>
-                </div>
-                <div className="glass-panel p-5 rounded-2xl border-l-4 border-l-rose-500">
-                  <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Chi Tiêu Tháng 7</span>
-                  <div className="text-2xl font-black text-rose-400 mt-1">-4.250.000 ₫</div>
-                  <p className="text-xs text-slate-400 mt-1 font-medium">Chi ăn uống, hóa đơn</p>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="cursor-pointer px-3 py-2 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 hover:bg-purple-600/30">
+                    <Camera className="w-4 h-4" /> Up Ảnh Hóa Đơn
+                    <input type="file" accept="image/*" className="hidden" onChange={handleReceiptUpload} />
+                  </label>
+
+                  <button
+                    onClick={handleGenerateVietQR}
+                    className="px-3 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/30"
+                  >
+                    <QrCode className="w-4 h-4" /> Tạo VietQR
+                  </button>
+
+                  <button
+                    onClick={() => setIsAddTxnModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
+                  >
+                    <Plus className="w-4 h-4" /> Nhập Giao Dịch
+                  </button>
                 </div>
               </div>
 
+              {/* Wallets & Bank Accounts Bar */}
               <div className="glass-panel p-5 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <h3 className="font-extrabold text-white text-base">Lịch Sử Giao Dịch Gần Đây</h3>
-                  <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-indigo-500/20 active:scale-95"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Ghi khoản chi
+                  <h4 className="font-extrabold text-white text-sm flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-indigo-400" /> Danh Sách Ví & Tài Khoản Ngân Hàng
+                  </h4>
+                  <button onClick={() => setIsAddWalletModalOpen(true)} className="text-xs font-bold text-indigo-400 hover:underline">
+                    + Thêm Ví Ngân Hàng
                   </button>
                 </div>
 
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                        <Utensils className="w-4 h-4" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {wallets.map((w) => (
+                    <div key={w.id} className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-300">{w.name}</span>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
+                          {w.type}
+                        </span>
                       </div>
-                      <div>
-                        <p className="font-bold text-sm text-white">Ăn tối cùng gia đình</p>
-                        <p className="text-xs text-slate-400 font-medium">Ăn uống • Ví Tiền Mặt • 26/07/2026</p>
+                      <div className="text-lg font-black text-white">
+                        {(w.balanceMinor || w.openingBalanceMinor || 0).toLocaleString('vi-VN')} ₫
                       </div>
                     </div>
-                    <span className="font-black text-sm text-rose-400">-150.000 ₫</span>
-                  </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Transaction Table with Full Delete Action */}
+              <div className="glass-panel p-5 rounded-2xl space-y-4">
+                <h4 className="font-extrabold text-white text-base border-b border-slate-800 pb-3">Lịch Sử Thu Chi Gần Đây</h4>
+
+                <div className="space-y-2.5">
+                  {transactions.map((txn) => (
+                    <div key={txn.id} className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2.5 rounded-xl border ${
+                            txn.type === 'expense'
+                              ? 'bg-rose-500/15 text-rose-400 border-rose-500/20'
+                              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
+                          }`}
+                        >
+                          {txn.type === 'expense' ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-white">{txn.note || 'Giao dịch thu chi'}</p>
+                          <p className="text-xs text-slate-400 font-medium">{txn.occurredOn} • Ví Ngân Hàng</p>
+                          {txn.receiptUrl && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-purple-400 font-bold mt-0.5">
+                              <FileImage className="w-3 h-3" /> Có ảnh hóa đơn
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className={`font-black text-sm ${txn.type === 'expense' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {txn.type === 'expense' ? '-' : '+'}{(txn.amountMinor || 0).toLocaleString('vi-VN')} ₫
+                        </span>
+                        <button onClick={() => handleDeleteTxn(txn.id)} className="text-slate-500 hover:text-rose-400 p-1">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -808,62 +846,45 @@ export default function App() {
           {/* TAB 3: TASKS */}
           {activeTab === 'tasks' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <h3 className="text-lg font-extrabold text-white">Quản Lý Công Việc & Lịch Tái Diễn (RRULE)</h3>
-
-                <div className="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
-                  <button
-                    onClick={() => setTaskFilter('all')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      taskFilter === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Tất cả
-                  </button>
-                  <button
-                    onClick={() => setTaskFilter('recurring')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      taskFilter === 'recurring' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Định Kỳ
-                  </button>
-                  <button
-                    onClick={() => setTaskFilter('due')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      taskFilter === 'due' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Cần Làm
-                  </button>
-                </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-extrabold text-white">Quản Lý Công Việc & Lịch Tái Diễn</h3>
+                <button
+                  onClick={() => setIsAddTaskModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
+                >
+                  <Plus className="w-4 h-4" /> Thêm Việc Mới
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredTasks.map((t) => (
-                  <div key={t.id} className="glass-panel p-5 rounded-2xl space-y-3 border border-slate-800/80">
+                  <div key={t.id} className="glass-panel p-5 rounded-2xl space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => handleToggleTask(t.id, t.status)}
-                          className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all ${
-                            t.status === 'done'
-                              ? 'bg-indigo-600 border-indigo-600 text-white'
-                              : 'border-slate-700 bg-slate-950 text-transparent hover:border-indigo-500'
+                          className={`w-6 h-6 rounded border flex items-center justify-center ${
+                            t.status === 'done' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-700'
                           }`}
                         >
                           <Check className="w-3.5 h-3.5 stroke-[3]" />
                         </button>
-                        <h4 className={`font-bold text-base ${t.status === 'done' ? 'line-through text-slate-400' : 'text-white'}`}>
+                        <h4 className={`font-bold text-base ${t.status === 'done' ? 'line-through text-slate-500' : 'text-white'}`}>
                           {t.title}
                         </h4>
                       </div>
-                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                        {t.priority}
-                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-500/20 text-rose-400">
+                          {t.priority}
+                        </span>
+                        <button onClick={() => handleDeleteTask(t.id)} className="text-slate-500 hover:text-rose-400 p-1">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    {t.description && <p className="text-xs text-slate-400 pl-9 font-medium">{t.description}</p>}
-                    <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400 pl-9 font-medium">
+                    {t.description && <p className="text-xs text-slate-400 pl-9">{t.description}</p>}
+                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 pl-9 font-medium">
                       <span>Lặp: {t.rrule || 'Một lần'}</span>
                       <span>Hạn: {t.dueOn}</span>
                     </div>
@@ -877,9 +898,12 @@ export default function App() {
           {activeTab === 'assets' && (
             <div className="space-y-6 max-w-7xl mx-auto">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-extrabold text-white">Danh Mục Thiết Bị & Lịch Bảo Trì Xe/Gia Dụng</h3>
-                <button className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs flex items-center gap-1.5 border border-slate-700 hover:bg-slate-700">
-                  <QrCode className="w-4 h-4 text-indigo-400" /> Quét Mã QR
+                <h3 className="text-lg font-extrabold text-white">Quản Lý Thiết Bị & Lịch Bảo Trì</h3>
+                <button
+                  onClick={() => setIsAddAssetModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
+                >
+                  <Plus className="w-4 h-4" /> Thêm Thiết Bị
                 </button>
               </div>
 
@@ -891,14 +915,14 @@ export default function App() {
                         <Wrench className="w-4 h-4 text-indigo-400" />
                         {ast.name}
                       </h4>
-                      <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                        {ast.status}
-                      </span>
+                      <button onClick={() => handleDeleteAsset(ast.id)} className="text-slate-500 hover:text-rose-400 p-1">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                     <div className="text-xs text-slate-400 space-y-1 font-medium">
                       <p>Danh mục: <strong className="text-slate-200">{ast.category}</strong></p>
                       <p>Vị trí: <strong className="text-slate-200">{ast.location}</strong></p>
-                      <p>Hạn bảo hành: <strong className="text-amber-400 font-bold">{ast.warrantyUntil || 'Không rõ'}</strong></p>
+                      <p>Hạn bảo hành: <strong className="text-amber-400 font-bold">{ast.warrantyUntil || '2027'}</strong></p>
                     </div>
                   </div>
                 ))}
@@ -906,104 +930,413 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 5: DAILY & HABITS */}
+          {/* TAB 5: DAILY & NOTES */}
           {activeTab === 'daily' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              <h3 className="text-lg font-extrabold text-white">Thói Quen Hằng Ngày & Ghi Chú Sổ Tay</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="glass-panel p-5 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-white flex items-center gap-2">
-                      <Flame className="w-4 h-4 text-amber-400" /> Đọc sách 30 phút
-                    </span>
-                    <span className="text-xs font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full">
-                      🔥 Streak 5 Ngày
-                    </span>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-extrabold text-white">Ghi Chú Sổ Tay & Thói Quen Hằng Ngày</h3>
+                <button
+                  onClick={() => setIsAddNoteModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
+                >
+                  <Plus className="w-4 h-4" /> Tạo Ghi Chú
+                </button>
+              </div>
 
-                <div className="glass-panel p-5 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-white flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-indigo-400" /> Ghi chú Mật Khẩu Wifi
-                    </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {notes.map((n) => (
+                  <div key={n.id} className="glass-panel p-5 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <span className="font-extrabold text-white text-sm flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-indigo-400" /> {n.title}
+                      </span>
+                      <button onClick={() => handleDeleteNote(n.id)} className="text-slate-500 hover:text-rose-400 p-1">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-300 bg-slate-900/80 p-3 rounded-xl border border-slate-800 font-mono">
+                      {n.content}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-300 bg-slate-900/80 p-3 rounded-xl border border-slate-800 font-mono">
-                    Mật khẩu Wifi: SuperFast2026
-                  </p>
-                </div>
+                ))}
               </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* Floating Action Button (FAB) on Mobile Screens (< md) */}
-      <button
-        onClick={() => setIsAddModalOpen(true)}
-        className="md:hidden fixed bottom-20 right-5 z-40 w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 text-white shadow-xl shadow-indigo-500/40 flex items-center justify-center active:scale-90 transition-all ring-2 ring-indigo-400/30"
-        aria-label="Ghi chi mới"
-      >
-        <Plus className="w-7 h-7 stroke-[3]" />
-      </button>
+      {/* --- ALL MODALS --- */}
 
-      {/* Bottom Navigation Bar for Mobile (< md) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-nav-mobile px-3 py-2 flex items-center justify-around">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
-            activeTab === 'dashboard' ? 'text-indigo-400 font-extrabold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <LayoutDashboard className="w-5 h-5" />
-          <span className="text-[10px]">Dashboard</span>
-        </button>
+      {/* 1. VietQR Bank Transfer Modal */}
+      {isVietQRModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4 shadow-2xl border border-indigo-500/40">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-indigo-400" />
+                Mã VietQR Chuyển Khoản Ngân Hàng
+              </h3>
+              <button onClick={() => setIsVietQRModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        <button
-          onClick={() => setActiveTab('finance')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
-            activeTab === 'finance' ? 'text-indigo-400 font-extrabold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Wallet className="w-5 h-5" />
-          <span className="text-[10px]">Chi Tiêu</span>
-        </button>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Ngân hàng</label>
+                  <select
+                    value={qrBank}
+                    onChange={(e) => setQrBank(e.target.value)}
+                    className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                  >
+                    <option value="MB">MB Bank</option>
+                    <option value="VCB">Vietcombank</option>
+                    <option value="TCB">Techcombank</option>
+                    <option value="VPB">VPBank</option>
+                    <option value="ICB">VietinBank</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Số tài khoản</label>
+                  <input
+                    type="text"
+                    value={qrAccountNo}
+                    onChange={(e) => setQrAccountNo(e.target.value)}
+                    className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                  />
+                </div>
+              </div>
 
-        <button
-          onClick={() => setActiveTab('tasks')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
-            activeTab === 'tasks' ? 'text-indigo-400 font-extrabold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <CheckSquare className="w-5 h-5" />
-          <span className="text-[10px]">Công Việc</span>
-        </button>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Số tiền (VND)</label>
+                  <input
+                    type="number"
+                    value={qrAmount}
+                    onChange={(e) => setQrAmount(e.target.value)}
+                    className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Nội dung</label>
+                  <input
+                    type="text"
+                    value={qrNote}
+                    onChange={(e) => setQrNote(e.target.value)}
+                    className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                  />
+                </div>
+              </div>
 
-        <button
-          onClick={() => setActiveTab('assets')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
-            activeTab === 'assets' ? 'text-indigo-400 font-extrabold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Wrench className="w-5 h-5" />
-          <span className="text-[10px]">Thiết Bị</span>
-        </button>
+              <button
+                onClick={handleGenerateVietQR}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md"
+              >
+                Cập Nhật Mã QR Live
+              </button>
 
-        <button
-          onClick={() => setActiveTab('daily')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
-            activeTab === 'daily' ? 'text-indigo-400 font-extrabold' : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Calendar className="w-5 h-5" />
-          <span className="text-[10px]">Sinh Hoạt</span>
-        </button>
-      </nav>
+              {generatedQrUrl && (
+                <div className="p-4 rounded-xl bg-white text-slate-900 flex flex-col items-center justify-center space-y-2">
+                  <img src={generatedQrUrl} alt="Mã VietQR" className="w-56 h-56 object-contain" />
+                  <p className="text-xs font-bold text-center text-slate-800">Quét bằng ứng dụng Ngân hàng (MB, VCB, TCB...)</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Social OAuth Login Modal */}
+      {/* 2. Add Transaction Modal */}
+      {isAddTxnModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4 shadow-2xl border border-slate-700">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-extrabold text-white text-base">Ghi Giao Dịch Mới (Thu / Chi)</h3>
+              <button onClick={() => setIsAddTxnModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTxn} className="space-y-3">
+              <div className="flex gap-2 p-1 bg-slate-900 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setTxnType('expense')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${
+                    txnType === 'expense' ? 'bg-rose-600 text-white' : 'text-slate-400'
+                  }`}
+                >
+                  Khoản Chi (-)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTxnType('income')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${
+                    txnType === 'income' ? 'bg-emerald-600 text-white' : 'text-slate-400'
+                  }`}
+                >
+                  Khoản Thu (+)
+                </button>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Số Tiền (VND)</label>
+                <input
+                  type="number"
+                  placeholder="150000"
+                  value={txnAmount}
+                  onChange={(e) => setTxnAmount(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-extrabold text-lg"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Ghi Chú</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Mua sắm siêu thị"
+                  value={txnNote}
+                  onChange={(e) => setTxnNote(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-medium text-white"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTxnModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-md">
+                  Lưu Giao Dịch
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Add Task Modal */}
+      {isAddTaskModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-extrabold text-white text-base">Thêm Công Việc Mới</h3>
+              <button onClick={() => setIsAddTaskModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTask} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Tên Công Việc</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Đóng tiền điện tháng 7"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Chu Kỳ Lặp (RRULE Tái Diễn)</label>
+                <select
+                  value={taskRrule}
+                  onChange={(e) => setTaskRrule(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-bold"
+                >
+                  <option value="">Không lặp (Một lần)</option>
+                  <option value="FREQ=WEEKLY">Hằng tuần (Weekly)</option>
+                  <option value="FREQ=MONTHLY;BYMONTHDAY=25">Hằng tháng (Ngày 25)</option>
+                  <option value="FREQ=YEARLY">Hằng năm (Yearly)</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTaskModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
+                  Tạo Công Việc
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Add Asset Modal */}
+      {isAddAssetModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-extrabold text-white text-base">Thêm Thiết Bị / Xe Cần Bảo Trì</h3>
+              <button onClick={() => setIsAddAssetModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAsset} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Tên Thiết Bị / Xe</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Xe Honda SH 150i"
+                  value={assetName}
+                  onChange={(e) => setAssetName(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Danh Mục</label>
+                <select
+                  value={assetCategory}
+                  onChange={(e) => setAssetCategory(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-bold"
+                >
+                  <option value="Xe máy & Ô tô">Xe máy & Ô tô</option>
+                  <option value="Máy lọc nước & Đồ điện">Máy lọc nước & Đồ điện</option>
+                  <option value="Điều hòa & Điện lạnh">Điều hòa & Điện lạnh</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddAssetModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
+                  Thêm Thiết Bị
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Add Note Modal */}
+      {isAddNoteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-extrabold text-white text-base">Tạo Ghi Chú Sổ Tay</h3>
+              <button onClick={() => setIsAddNoteModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNote} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Tiêu Đề Ghi Chú</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Mật khẩu Wifi nhà"
+                  value={noteTitle}
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Nội Dung Ghi Chú</label>
+                <textarea
+                  rows={3}
+                  placeholder="Nhập nội dung ghi nhớ..."
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-medium"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddNoteModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
+                  Lưu Ghi Chú
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Add Wallet Modal */}
+      {isAddWalletModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-extrabold text-white text-base">Thêm Ví Ngân Hàng Mới</h3>
+              <button onClick={() => setIsAddWalletModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateWallet} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Tên Ví / Ngân Hàng</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Ví MB Bank 0987654321"
+                  value={walletName}
+                  onChange={(e) => setWalletName(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Số Dư Ban Đầu (VND)</label>
+                <input
+                  type="number"
+                  placeholder="5000000"
+                  value={walletBalance}
+                  onChange={(e) => setWalletBalance(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-bold"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddWalletModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
+                  Thêm Ví
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Social Auth Modal */}
       {isAuthModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-sm p-6 rounded-2xl space-y-5 shadow-2xl border border-indigo-500/30 animate-sheet-up md:animate-none">
+          <div className="glass-panel w-full max-w-sm p-6 rounded-2xl space-y-5 shadow-2xl border border-indigo-500/30">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="font-extrabold text-white text-base flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-indigo-400" />
@@ -1014,12 +1347,7 @@ export default function App() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 text-center font-medium">
-              Đăng nhập để đồng bộ dữ liệu gia đình & chi tiêu trên nhiều thiết bị.
-            </p>
-
             <div className="space-y-3">
-              {/* Google Login Button */}
               <button
                 onClick={() => handleSocialLogin('google')}
                 className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-md transition-all flex items-center justify-center gap-3 active:scale-95"
@@ -1028,189 +1356,12 @@ export default function App() {
                 <span>Tiếp tục với Google</span>
               </button>
 
-              {/* Facebook Login Button */}
               <button
                 onClick={() => handleSocialLogin('facebook')}
-                className="w-full py-3 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-3 active:scale-95"
+                className="w-full py-3 px-4 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-3 active:scale-95"
               >
                 <FacebookIcon className="w-5 h-5 fill-white" />
                 <span>Tiếp tục với Facebook</span>
-              </button>
-            </div>
-
-            <div className="pt-2 text-center border-t border-slate-800">
-              <span className="text-[10px] text-slate-500">Bảo mật SSL 256-bit bởi Cloudflare Worker & D1</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Add Expense Bottom Sheet Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="glass-panel w-full max-w-md p-6 rounded-t-3xl md:rounded-2xl space-y-4 shadow-2xl border border-slate-700/60 animate-sheet-up md:animate-none">
-            <div className="w-12 h-1 rounded-full bg-slate-700 mx-auto md:hidden mb-2"></div>
-
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-lg flex items-center gap-2">
-                <Plus className="w-5 h-5 text-indigo-400" />
-                Ghi Khoản Chi Mới
-              </h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddExpense} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-extrabold text-slate-400 mb-1.5 uppercase tracking-wider">Số Tiền (VND)</label>
-                <input
-                  type="number"
-                  placeholder="Ví dụ: 150000"
-                  value={newTxnAmount}
-                  onChange={(e) => setNewTxnAmount(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-extrabold text-xl focus:outline-none focus:border-indigo-500"
-                  required
-                  autoFocus
-                />
-              </div>
-
-              {/* Category Selector Chips */}
-              <div>
-                <label className="block text-[11px] font-extrabold text-slate-400 mb-1.5 uppercase tracking-wider">Danh Mục Chi</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory('cat_food')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      selectedCategory === 'cat_food'
-                        ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <Utensils className="w-3.5 h-3.5" /> Ăn uống
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory('cat_bills')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      selectedCategory === 'cat_bills'
-                        ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <Zap className="w-3.5 h-3.5" /> Hóa đơn
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory('cat_transport')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      selectedCategory === 'cat_transport'
-                        ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <Car className="w-3.5 h-3.5" /> Đi lại
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-extrabold text-slate-400 mb-1.5 uppercase tracking-wider">Ghi Chú Nội Dung</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: Cà phê sáng với bạn bè"
-                  value={newTxnNote}
-                  onChange={(e) => setNewTxnNote(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-medium focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-extrabold text-slate-400 mb-1.5 uppercase tracking-wider">Chọn Ví Thanh Toán</label>
-                <select
-                  value={selectedWalletId}
-                  onChange={(e) => setSelectedWalletId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-semibold focus:outline-none focus:border-indigo-500"
-                >
-                  {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({(w.balanceMinor || w.openingBalanceMinor || 0).toLocaleString('vi-VN')} ₫)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-2 flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="w-1/2 md:w-auto px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-bold"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 md:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:opacity-95 text-sm font-extrabold shadow-lg shadow-indigo-500/25 active:scale-95"
-                >
-                  Lưu Ngay
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* PWA Installation Instructions Modal */}
-      {isInstallGuideOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4 shadow-2xl border border-indigo-500/40 animate-sheet-up md:animate-none">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-extrabold text-white text-base flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-indigo-400" />
-                Hướng Dẫn Cài App LifeHub
-              </h3>
-              <button onClick={() => setIsInstallGuideOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs text-slate-300">
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
-                <p className="font-bold text-indigo-300 flex items-center gap-1.5">
-                  <AppleIcon className="w-4 h-4" /> Với iPhone / iPad (Safari):
-                </p>
-                <ol className="list-decimal list-inside space-y-1 pl-1 text-slate-400">
-                  <li>Bấm nút <strong>Chia sẻ (Share) ⎋</strong> ở thanh dưới cùng Safari.</li>
-                  <li>Cuộn xuống chọn <strong>"Thêm vào Màn hình chính" ➕</strong>.</li>
-                  <li>Bấm <strong>Thêm (Add)</strong> ở góc trên bên phải.</li>
-                </ol>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
-                <p className="font-bold text-emerald-300 flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4" /> Với Android (Chrome):
-                </p>
-                <ol className="list-decimal list-inside space-y-1 pl-1 text-slate-400">
-                  <li>Bấm dấu <strong>3 chấm `⋮`</strong> ở góc trên bên phải Chrome.</li>
-                  <li>Chọn <strong>"Cài đặt ứng dụng"</strong> hoặc <strong>"Thêm vào MH chính"</strong>.</li>
-                </ol>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-between items-center">
-              <button
-                onClick={handleDismissBanner}
-                className="text-xs text-slate-400 hover:text-slate-200 underline"
-              >
-                Không hỏi lại nữa
-              </button>
-
-              <button
-                onClick={() => setIsInstallGuideOpen(false)}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-500 shadow-md shadow-indigo-600/30"
-              >
-                Đã Hiểu
               </button>
             </div>
           </div>
@@ -1247,14 +1398,6 @@ function FacebookIcon(props: any) {
   return (
     <svg className={props.className} viewBox="0 0 24 24">
       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-    </svg>
-  );
-}
-
-function AppleIcon(props: any) {
-  return (
-    <svg className={props.className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.32c.67-.82 1.13-1.96.99-3.12-1 .04-2.19.67-2.88 1.48-.6.7-1.12 1.83-.98 2.95 1.12.09 2.22-.49 2.87-1.31z"/>
     </svg>
   );
 }
