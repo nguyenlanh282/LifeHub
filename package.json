@@ -1,0 +1,15 @@
+{
+  "name": "lifehub-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm --recursive run build",
+    "db:generate": "pnpm --filter db db:generate",
+    "db:migrate": "pnpm --filter db db:migrate"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev src/index.ts --ip 0.0.0.0",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@lifehub/db": "file:../../packages/db",
+    "@lifehub/shared": "file:../../packages/shared",
+    "drizzle-orm": "^0.30.10",
+    "hono": "^4.3.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240529.0",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.57.2"
+  }
+}

@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Cloudflare Wrangler state
+.wrangler
+apps/api/.wrangler
+apps/web/.wrangler
+
+# Build outputs
+dist
+build
+.d1
+
+# Environment and secret files
+.env
+.env.*
+!.env.example
+
+# OS generated files
+.DS_Store
+Thumbs.db
+node_modules
