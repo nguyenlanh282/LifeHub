@@ -403,9 +403,9 @@ export default function App() {
           </div>
 
           <div className="space-y-3 pt-2">
-            {/* Unified Custom Domain Google OAuth Button */}
+            {/* Unified Google OAuth Button */}
             <button
-              onClick={() => handleRealGoogleOAuth('redirect', 'https://lifehub.alita.vn/api/auth/google/callback')}
+              onClick={() => handleRealGoogleOAuth('redirect', 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback')}
               className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 ring-2 ring-indigo-500/30"
             >
               <GoogleIcon className="w-5 h-5" />
