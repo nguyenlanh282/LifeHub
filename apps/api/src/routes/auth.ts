@@ -83,9 +83,9 @@ authRouter.post('/google/verify', async (c) => {
 
 // 2. Get Google OAuth Authorization URL
 authRouter.get('/google/url', (c) => {
-  const clientId = c.env.GOOGLE_CLIENT_ID || '11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com';
+  const clientId = c.env.GOOGLE_CLIENT_ID;
   const reqRedirectUri = c.req.query('redirect_uri');
-  const redirectUri = reqRedirectUri || 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
+  const redirectUri = reqRedirectUri || 'https://lifehub.alita.vn/api/auth/google/callback';
 
   const scope = encodeURIComponent('openid email profile');
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
@@ -100,22 +100,23 @@ authRouter.get('/google/callback', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.json({ error: 'Missing code parameter' }, 400);
 
-  const clientId = c.env.GOOGLE_CLIENT_ID || '11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com';
+  const clientId = c.env.GOOGLE_CLIENT_ID;
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
+  
+  // Support both direct worker callback and proxied lifehub.alita.vn/api/auth/google/callback
+  const reqUrl = c.req.url;
+  const redirectUri = reqUrl.includes('lifehub.alita.vn')
+    ? 'https://lifehub.alita.vn/api/auth/google/callback'
+    : 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
 
   try {
-    if (!clientSecret) {
-      return c.json({ error: 'Missing Google Client Secret binding' }, 500);
-    }
-
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         code,
-        client_id: clientId,
-        client_secret: clientSecret,
+        client_id: clientId || '',
+        client_secret: clientSecret || '',
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       }),
