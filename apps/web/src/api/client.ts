@@ -1,9 +1,6 @@
-const PRIMARY_API = 'https://lifehub-api.alita.vn';
-const FALLBACK_API = 'https://lifehub-api.it-nguyenlanh.workers.dev';
-
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-  
+
   // Local development check
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.'))) {
     const res = await fetch(cleanEndpoint, {
@@ -14,10 +11,9 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
     return res.json();
   }
 
-  // Attempt 1: Primary custom domain lifehub-api.alita.vn
+  // Attempt 1: Direct proxied endpoint /api/* on lifehub.alita.vn
   try {
-    const primaryUrl = `${PRIMARY_API}${cleanEndpoint}`;
-    const response = await fetch(primaryUrl, {
+    const response = await fetch(cleanEndpoint, {
       headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
       ...options,
     });
@@ -26,11 +22,11 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
       return await response.json();
     }
   } catch (primaryErr) {
-    console.warn('Primary domain fetch warning, falling back to Workers API:', primaryErr);
+    console.warn('Relative path fetch warning, falling back to Workers API:', primaryErr);
   }
 
-  // Attempt 2: Fallback Workers domain lifehub-api.it-nguyenlanh.workers.dev
-  const fallbackUrl = `${FALLBACK_API}${cleanEndpoint}`;
+  // Attempt 2: Direct Workers domain https://lifehub-api.it-nguyenlanh.workers.dev
+  const fallbackUrl = `https://lifehub-api.it-nguyenlanh.workers.dev${cleanEndpoint}`;
   const fallbackResponse = await fetch(fallbackUrl, {
     headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
     ...options,

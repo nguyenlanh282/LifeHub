@@ -1,1 +1,2 @@
-/api/* https://lifehub-api.sufruit-company.workers.dev/api/:splat 200
+/api/* https://lifehub-api.it-nguyenlanh.workers.dev/api/:splat 200
+/* /index.html 200
