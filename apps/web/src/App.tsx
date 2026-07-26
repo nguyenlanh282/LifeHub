@@ -329,7 +329,7 @@ export default function App() {
 
   // Official Google Real OAuth Sign-In (Direct Redirect & Account Selection)
   const handleRealGoogleOAuth = (mode: 'redirect' | 'popup') => {
-    const callbackHost = 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
+    const callbackHost = 'https://lifehub.alita.vn/api/auth/google/callback';
     const redirectUri = encodeURIComponent(callbackHost);
     const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=select_account`;
 
