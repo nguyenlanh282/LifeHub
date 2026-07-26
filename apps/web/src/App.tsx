@@ -398,27 +398,18 @@ export default function App() {
               <Lock className="w-4 h-4" /> Yêu Cầu Đăng Nhập Tài Khoản Google Chính Chủ
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-              Vui lòng chọn 1 trong 2 luồng xác thực Google bên dưới để đăng nhập chính chủ:
+              Vui lòng đăng nhập tài khoản Google của bạn để mã hóa và đồng bộ dữ liệu ví cá nhân.
             </p>
           </div>
 
           <div className="space-y-3 pt-2">
-            {/* Standard Workers Domain Google OAuth (Matches existing Google Console settings) */}
+            {/* Unified Custom Domain Google OAuth Button */}
             <button
-              onClick={() => handleRealGoogleOAuth('redirect', 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback')}
+              onClick={() => handleRealGoogleOAuth('redirect', 'https://lifehub.alita.vn/api/auth/google/callback')}
               className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 ring-2 ring-indigo-500/30"
             >
               <GoogleIcon className="w-5 h-5" />
-              <span>Đăng nhập với Google (Workers)</span>
-            </button>
-
-            {/* Custom Domain Google OAuth (Requires adding URI to Google Console) */}
-            <button
-              onClick={() => handleRealGoogleOAuth('redirect', 'https://lifehub.alita.vn/api/auth/google/callback')}
-              className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center justify-center gap-2 active:scale-95"
-            >
-              <GoogleIcon className="w-4 h-4" />
-              <span>Đăng nhập qua Tên Miền lifehub.alita.vn</span>
+              <span>Đăng nhập bằng Google</span>
             </button>
           </div>
 
