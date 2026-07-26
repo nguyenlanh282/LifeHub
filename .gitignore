@@ -13,6 +13,8 @@ build
 .d1
 
 # Environment and secret files
+.dev.vars
+*.pem
 .env
 .env.*
 !.env.example

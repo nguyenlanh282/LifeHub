@@ -6,28 +6,16 @@ account_id = "d4a30462b305677d4a98c834d8e5f06c"
 
 [vars]
 ENVIRONMENT = "development"
+GOOGLE_CLIENT_ID = "11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "lifehub_db"
 database_id = "af72c4fd-74a2-4d79-9807-cf26d297caa0"
 
-# [[r2_buckets]]
-# binding = "ASSET_BUCKET"
-# bucket_name = "lifehub-assets"
-
 [[kv_namespaces]]
 binding = "CACHE_KV"
 id = "a7e79fecf401407cad5784b9d2d2b0a2"
-
-# [[queues.producers]]
-# queue = "lifehub-reminders"
-# binding = "REMINDER_QUEUE"
-
-# [[queues.consumers]]
-# queue = "lifehub-reminders"
-# max_batch_size = 10
-# max_batch_timeout = 5
 
 [triggers]
 crons = ["0 0 * * *"] # Midnight UTC cron trigger for due-date processing

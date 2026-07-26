@@ -320,14 +320,30 @@ export default function App() {
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+    if (provider === 'google') {
+      const apiBase =
+        window.location.hostname === 'localhost'
+          ? ''
+          : 'https://lifehub-api.it-nguyenlanh.workers.dev';
+      const redirectUri = encodeURIComponent(`${apiBase}/api/auth/google/callback`);
+      const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=11326206059-5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=consent`;
+
+      const width = 500;
+      const height = 600;
+      const left = window.screenX + (window.innerWidth - width) / 2;
+      const top = window.screenY + (window.innerHeight - height) / 2;
+      window.open(googleUrl, 'GoogleAuthWindow', `width=${width},height=${height},left=${left},top=${top}`);
+      return;
+    }
+
     try {
       const res = await fetchApi<{ user: UserProfile }>('/api/auth/social-login', {
         method: 'POST',
         body: JSON.stringify({
           provider,
-          name: 'Nguyễn Văn Lành (Google Auth)',
+          name: 'Nguyễn Văn Lành (Social Auth)',
           email: 'it.nguyenlanh@gmail.com',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
+          avatarUrl: 'https://lh3.googleusercontent.com/a/default-user',
         }),
       });
 
