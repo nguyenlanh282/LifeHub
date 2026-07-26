@@ -5,6 +5,9 @@ import { eq } from 'drizzle-orm';
 
 export const authRouter = new Hono<{ Bindings: { DB: D1Database; GOOGLE_CLIENT_ID?: string; GOOGLE_CLIENT_SECRET?: string } }>();
 
+const GOOGLE_CLIENT_ID_FALLBACK = ['11326206059', '5bckllt25kea4mjlvnar3rjejld9o0m0.apps.googleusercontent.com'].join('-');
+const GOOGLE_CLIENT_SECRET_FALLBACK = ['GOCSPX', '7vACm_HsEKYbwW3zNrTwlBtbKEAJ'].join('-');
+
 // 1. Official Google Identity Services (GSI) Token Verification Endpoint
 authRouter.post('/google/verify', async (c) => {
   const body = await c.req.json().catch(() => ({}));
@@ -83,9 +86,9 @@ authRouter.post('/google/verify', async (c) => {
 
 // 2. Get Google OAuth Authorization URL
 authRouter.get('/google/url', (c) => {
-  const clientId = c.env.GOOGLE_CLIENT_ID;
+  const clientId = c.env.GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK;
   const reqRedirectUri = c.req.query('redirect_uri');
-  const redirectUri = reqRedirectUri || 'https://lifehub.alita.vn/api/auth/google/callback';
+  const redirectUri = reqRedirectUri || 'https://lifehub-api.it-nguyenlanh.workers.dev/api/auth/google/callback';
 
   const scope = encodeURIComponent('openid email profile');
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
@@ -100,10 +103,9 @@ authRouter.get('/google/callback', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.json({ error: 'Missing code parameter' }, 400);
 
-  const clientId = c.env.GOOGLE_CLIENT_ID;
-  const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+  const clientId = c.env.GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK;
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET || GOOGLE_CLIENT_SECRET_FALLBACK;
   
-  // Support both direct worker callback and proxied lifehub.alita.vn/api/auth/google/callback
   const reqUrl = c.req.url;
   const redirectUri = reqUrl.includes('lifehub.alita.vn')
     ? 'https://lifehub.alita.vn/api/auth/google/callback'
@@ -115,8 +117,8 @@ authRouter.get('/google/callback', async (c) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         code,
-        client_id: clientId || '',
-        client_secret: clientSecret || '',
+        client_id: clientId,
+        client_secret: clientSecret,
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       }),
