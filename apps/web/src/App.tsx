@@ -531,10 +531,15 @@ export default function App() {
 
           {activeTab === 'settings' && (
             <SettingsTab
+              currentUser={currentUser}
+              workspaces={workspaces}
               currentWorkspace={currentWorkspace}
               members={members}
+              onSwitchWorkspace={(ws) => setCurrentWorkspace(ws)}
+              onCreateWorkspace={() => setIsAddWorkspaceModalOpen(true)}
               onSaveWorkspaceSettings={handleSaveWorkspaceSettings}
               onInviteMember={handleInviteMember}
+              onLogout={handleLogout}
             />
           )}
         </div>
