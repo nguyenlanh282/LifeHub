@@ -19,7 +19,7 @@ import { TasksTab } from './components/TasksTab';
 import { AssetsTab } from './components/AssetsTab';
 import { DailyTab } from './components/DailyTab';
 import { SettingsTab } from './components/SettingsTab';
-import { X, QrCode, Zap, Sparkles, User, ShieldCheck, Lock } from 'lucide-react';
+import { X, QrCode, Zap, Sparkles, User, ShieldCheck, Lock, LayoutDashboard, Wallet as WalletIcon, CheckSquare, Settings as SettingsIcon, LogOut } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ModuleTab>('dashboard');
@@ -453,6 +453,7 @@ export default function App() {
             setIsInstalled(true);
             localStorage.setItem('pwa_installed', 'true');
           }}
+          onLogout={handleLogout}
         />
 
         {bankSyncMessage && (
@@ -532,6 +533,45 @@ export default function App() {
               onLogout={handleLogout}
             />
           )}
+        </div>
+
+        {/* Mobile Bottom Navigation Bar */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 flex items-center justify-around z-40 px-2">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-indigo-400 font-extrabold' : 'text-slate-400'}`}
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Tổng Quan</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('finance')}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'finance' ? 'text-indigo-400 font-extrabold' : 'text-slate-400'}`}
+          >
+            <WalletIcon className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Thu Chi</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'tasks' ? 'text-indigo-400 font-extrabold' : 'text-slate-400'}`}
+          >
+            <CheckSquare className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Công Việc</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'settings' ? 'text-indigo-400 font-extrabold' : 'text-slate-400'}`}
+          >
+            <SettingsIcon className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Quản Trị</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex flex-col items-center gap-1 text-rose-400 hover:text-rose-300 active:scale-95"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Thoát</span>
+          </button>
         </div>
       </main>
 

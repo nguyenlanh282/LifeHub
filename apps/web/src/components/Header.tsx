@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, RefreshCw, User, Smartphone, Users } from 'lucide-react';
+import { Sparkles, RefreshCw, User, Smartphone, Users, LogOut } from 'lucide-react';
 import { ModuleTab, Workspace, UserProfile } from '../types';
 
 interface HeaderProps {
@@ -12,6 +12,7 @@ interface HeaderProps {
   onOpenAddWorkspace: () => void;
   isInstalled: boolean;
   onInstallPWA: () => void;
+  onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAddWorkspace,
   isInstalled,
   onInstallPWA,
+  onLogout,
 }) => {
   return (
     <header className="h-14 md:h-16 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between sticky top-0 z-30">
@@ -62,13 +64,20 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {currentUser ? (
-          <div className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center gap-2 pl-2 pr-2 py-1 rounded-xl bg-slate-900 border border-slate-800">
             <img
               src={currentUser.avatarUrl || 'https://lh3.googleusercontent.com/a/default-user'}
               alt={currentUser.name}
               className="w-6 h-6 rounded-full object-cover ring-2 ring-indigo-500/30"
             />
             <span className="text-xs font-extrabold text-slate-200 hidden sm:inline">{currentUser.name}</span>
+            <button
+              onClick={onLogout}
+              className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+              title="Đăng xuất / Thoát tài khoản"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         ) : (
           <button
