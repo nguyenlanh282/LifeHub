@@ -184,30 +184,37 @@ authRouter.get('/google/callback', async (c) => {
       }
     }
 
+    const userStr = encodeURIComponent(JSON.stringify(googleUser));
+    const targetRedirectUrl = `https://lifehub.alita.vn/?login_user=${userStr}`;
+
     return c.html(`
       <!DOCTYPE html>
       <html>
-        <head><title>Đăng nhập Google thành công</title></head>
+        <head>
+          <title>Đăng nhập Google thành công</title>
+          <meta http-equiv="refresh" content="0;url=${targetRedirectUrl}" />
+        </head>
         <body style="background:#0a0e17;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
           <div style="text-align:center;">
             <h2>⚡ Đăng nhập Google thành công!</h2>
             <p>Xin chào ${googleUser.name} (${googleUser.email})</p>
             <p>Đang tự động chuyển hướng về LifeHub App...</p>
+            <p><a href="${targetRedirectUrl}" style="color:#818cf8;font-weight:bold;">Bấm vào đây nếu không tự chuyển hướng</a></p>
           </div>
           <script>
             const userObj = ${JSON.stringify(googleUser)};
             if (window.opener) {
-              window.opener.postMessage({
-                type: 'OAUTH_SUCCESS',
-                provider: 'google',
-                user: userObj,
-                token: 'jwt_google_oauth_token_' + Date.now()
-              }, '*');
-              window.close();
-            } else {
-              const userStr = encodeURIComponent(JSON.stringify(userObj));
-              window.location.href = 'https://lifehub.alita.vn/?login_user=' + userStr;
+              try {
+                window.opener.postMessage({
+                  type: 'OAUTH_SUCCESS',
+                  provider: 'google',
+                  user: userObj,
+                  token: 'jwt_google_oauth_token_' + Date.now()
+                }, '*');
+              } catch (e) {}
             }
+            localStorage.setItem('lifehub_user', JSON.stringify(userObj));
+            window.location.replace('${targetRedirectUrl}');
           </script>
         </body>
       </html>
