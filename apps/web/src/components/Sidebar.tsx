@@ -198,6 +198,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 src={currentUser.avatarUrl || 'https://lh3.googleusercontent.com/a/default-user'}
                 alt={currentUser.name}
                 className="w-7 h-7 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0"
+                style={{ width: '28px', height: '28px', minWidth: '28px', minHeight: '28px', maxWidth: '28px', maxHeight: '28px', borderRadius: '50%', objectFit: 'cover' }}
+                onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
               />
               <span className="text-xs font-bold text-white truncate">{currentUser.name}</span>
             </div>

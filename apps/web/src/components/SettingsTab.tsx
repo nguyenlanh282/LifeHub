@@ -56,7 +56,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-extrabold text-lg shadow-lg">
               {currentUser?.avatarUrl ? (
-                <img src={currentUser.avatarUrl} alt="Avatar" className="w-12 h-12 rounded-xl object-cover" />
+                <img
+                  src={currentUser.avatarUrl}
+                  alt="Avatar"
+                  className="w-12 h-12 rounded-xl object-cover"
+                  style={{ width: '48px', height: '48px', minWidth: '48px', minHeight: '48px', maxWidth: '48px', maxHeight: '48px', borderRadius: '12px', objectFit: 'cover' }}
+                  onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                />
               ) : (
                 currentUser?.name?.charAt(0) || 'U'
               )}
